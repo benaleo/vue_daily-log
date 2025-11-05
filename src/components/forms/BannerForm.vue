@@ -20,6 +20,13 @@ const imagePreview = ref<string | null>(null)
 
 const { uploading, uploadImage } = useImageUpload()
 
+const resetForm = () => {
+  name.value = ''
+  url.value = ''
+  imageFile.value = null
+  imagePreview.value = null
+}
+
 // Watch for banner prop changes (edit mode)
 watch(() => props.banner, (newBanner) => {
   if (newBanner) {
@@ -47,12 +54,6 @@ const handleFileChange = (event: Event) => {
   }
 }
 
-const resetForm = () => {
-  name.value = ''
-  url.value = ''
-  imageFile.value = null
-  imagePreview.value = null
-}
 
 const handleSubmit = async () => {
   let finalUrl = url.value
