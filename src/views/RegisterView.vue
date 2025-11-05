@@ -89,6 +89,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { authService } from '@/services/supabase'
+import { toast } from 'vue-sonner'
 
 const router = useRouter()
 
@@ -106,7 +107,6 @@ const success = ref('')
 const handleRegister = async () => {
   loading.value = true
   error.value = ''
-  success.value = ''
 
   // Validasi password
   if (form.value.password !== form.value.confirmPassword) {
@@ -134,13 +134,13 @@ const handleRegister = async () => {
     }
 
     if (data.user) {
-      success.value = 'Registrasi berhasil! Silakan cek email untuk verifikasi.'
       setTimeout(() => {
         router.push('/login')
+        toast.success('Register successfully! Please check your email for verification.')
       }, 2000)
     }
   } catch (err) {
-    error.value = 'Terjadi kesalahan saat registrasi'
+    toast.error('Something went wrong')
   } finally {
     loading.value = false
   }
