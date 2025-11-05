@@ -107,15 +107,18 @@ const saveProfile = async () => {
     const { error } = await authService.updateProfile(editName.value, finalAvatarUrl)
     if (error) throw error
     
-    successMessage.value = 'Profile berhasil diupdate'
+    successMessage.value = 'Profile updated successfully'
     await loadUserData()
     
     setTimeout(() => {
       showEditProfile.value = false
       successMessage.value = ''
     }, 1500)
+
+    toast.success(successMessage.value)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Gagal update profile'
+    errorMessage.value = error.message || 'Failed to update profile'
+    toast.error(errorMessage.value)
   }
 }
 
@@ -132,17 +135,17 @@ const savePassword = async () => {
   errorMessage.value = ''
   
   if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
-    errorMessage.value = 'Semua field harus diisi'
+    errorMessage.value = 'All fields must be filled'
     return
   }
   
   if (newPassword.value !== confirmPassword.value) {
-    errorMessage.value = 'Password baru dan konfirmasi tidak sama'
+    errorMessage.value = 'New password and confirmation do not match'
     return
   }
   
   if (newPassword.value.length < 6) {
-    errorMessage.value = 'Password minimal 6 karakter'
+    errorMessage.value = 'New password must be at least 6 characters long'
     return
   }
 
@@ -151,7 +154,7 @@ const savePassword = async () => {
     const { error } = await authService.updatePassword(newPassword.value)
     if (error) throw error
     
-    successMessage.value = 'Password berhasil diubah'
+    successMessage.value = 'Password updated successfully'
     
     setTimeout(() => {
       showEditPassword.value = false
