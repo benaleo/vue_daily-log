@@ -81,7 +81,7 @@ export const historyService = {
     if (data) {
       data.forEach((history) => {
         if (!history.image_url) {
-          history.image_url = 'public/img.jpg'
+          history.image_url = '/img.jpg'
         }
       })
     }

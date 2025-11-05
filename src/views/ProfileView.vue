@@ -54,7 +54,7 @@ const loadUserData = async () => {
     user.value = {
       name: session.user.user_metadata?.name || 'User',
       email: session.user.email || '',
-      avatar: session.user.user_metadata?.avatar_url || 'public/img.jpg'
+      avatar: session.user.user_metadata?.avatar_url || '/img.jpg'
     }
   }
 }
