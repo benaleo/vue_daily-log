@@ -521,7 +521,7 @@ const confirmCategoryDelete = async () => {
       >
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Kelola Banner</h2>
+            <h2 class="text-xl font-bold text-gray-900">Setting Banner</h2>
             <button @click="showBannerSettings = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -631,7 +631,7 @@ const confirmCategoryDelete = async () => {
       >
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Kelola Kategori History</h2>
+            <h2 class="text-xl font-bold text-gray-900">Setting Kategori History</h2>
             <button @click="showCategorySettings = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
