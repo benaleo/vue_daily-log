@@ -167,7 +167,7 @@ const getCategoryName = (history: History) => {
               <p class="text-sm text-gray-600">{{ getCategoryName(item) }}</p>
               <p class="text-xs text-gray-500 mt-1">{{ formatDate(item.created_at) }}</p>
             </div>
-            <div class="text-right flex-shrink-0">
+            <div class="text-right flex-shrink-0 pr-8">
               <p 
                 class="font-bold"
                 :class="item.type === 'INCOME' ? 'text-green-600' : 'text-red-600'"
@@ -185,7 +185,7 @@ const getCategoryName = (history: History) => {
             <!-- Hamburger Menu Button -->
             <button
               @click="toggleMenu(item.id)"
-              class="absolute top-2 right-2 p-1 hover:bg-gray-100 rounded"
+              class="absolute top-1/2 -translate-y-1/2 right-2 p-1 hover:bg-gray-100 rounded"
             >
               <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
