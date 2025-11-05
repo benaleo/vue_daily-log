@@ -8,7 +8,11 @@ const route = useRoute()
 // Determine the title based on the current route
 const pageTitle = computed(() => {
   const routeName = route.name?.toString() || 'Home'
-  return routeName.charAt(0).toUpperCase() + routeName.slice(1)
+  const title = routeName === 'Home' 
+    ? 'Home' 
+    : routeName.charAt(0).toUpperCase() + routeName.slice(1)
+  document.title = `Diary Log${title === 'Home' ? '' : ' - ' + title}`
+  return title
 })
 
 // Configure back button for specific routes

@@ -18,7 +18,7 @@ const filterCategory = ref<number | ''>('')
 const filterDateStart = ref('')
 const filterDateEnd = ref('')
 
-const { histories, loading, fetchHistories, refresh } = useHistories()
+const { histories, loading, fetchHistories, refresh, displayedHistories, pageSize, setPageSize, hasMore, loadMore } = useHistories()
 const { categories, fetchCategories, getOptionHistoryCategories } = useOptionHistoryCategories()
 
 onMounted(async () => {
@@ -127,13 +127,33 @@ const handleDelete = async (id: number) => {
 const getCategoryName = (history: History) => {
   return history.category?.name || 'Uncategorized'
 }
+
+// Image zoom modal for history images
+const showImageModal = ref(false)
+const selectedImageUrl = ref('')
+const openImage = (url: string) => {
+  selectedImageUrl.value = url
+  showImageModal.value = true
+}
+const closeImage = () => {
+  showImageModal.value = false
+  selectedImageUrl.value = ''
+}
 </script>
 
 <template>
   <MainLayout title="History">
     <div class="p-4 space-y-4 relative">
       <!-- Filter Button -->
-      <div class="flex justify-end">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-600">Show</label>
+          <select :value="pageSize" @change="setPageSize(parseInt(($event.target as HTMLSelectElement).value))" class="px-2 py-1 border border-gray-300 rounded-md">
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
         <button 
           @click="showFilter = true"
           class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -152,7 +172,7 @@ const getCategoryName = (history: History) => {
 
       <div v-else class="space-y-3">
         <div 
-          v-for="item in histories" 
+          v-for="item in displayedHistories" 
           :key="item.id"
           class="bg-white rounded-lg shadow p-4 border border-gray-200 relative"
         >
@@ -160,14 +180,15 @@ const getCategoryName = (history: History) => {
             <img 
               :src="item.image_url || 'https://via.placeholder.com/60/6366f1/ffffff?text=No+Image'" 
               :alt="item.name"
-              class="w-14 h-14 rounded-lg object-cover"
+              class="w-14 h-14 rounded-lg object-cover cursor-pointer hover:opacity-90"
+              @click="openImage(item.image_url || '')"
             >
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-gray-900 truncate">{{ item.name }}</h3>
               <p class="text-sm text-gray-600">{{ getCategoryName(item) }}</p>
               <p class="text-xs text-gray-500 mt-1">{{ formatDate(item.created_at) }}</p>
             </div>
-            <div class="text-right flex-shrink-0">
+            <div class="text-right flex-shrink-0 pr-8">
               <p 
                 class="font-bold"
                 :class="item.type === 'INCOME' ? 'text-green-600' : 'text-red-600'"
@@ -185,7 +206,7 @@ const getCategoryName = (history: History) => {
             <!-- Hamburger Menu Button -->
             <button
               @click="toggleMenu(item.id)"
-              class="absolute top-2 right-2 p-1 hover:bg-gray-100 rounded"
+              class="absolute top-1/2 -translate-y-1/2 right-2 p-1 hover:bg-gray-100 rounded"
             >
               <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
@@ -221,6 +242,10 @@ const getCategoryName = (history: History) => {
         <div v-if="histories.length === 0" class="text-center py-12 text-gray-500">
           Tidak ada data history
         </div>
+
+        <div v-else-if="hasMore" class="pt-2">
+          <button @click="loadMore" class="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Load More</button>
+        </div>
       </div>
 
       <!-- Create Button -->
@@ -232,6 +257,7 @@ const getCategoryName = (history: History) => {
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
+         <span class="ml-2 font-bold"> Add History</span>
         </button>
       </div>
     </div>
@@ -343,7 +369,7 @@ const getCategoryName = (history: History) => {
       >
         <div class="bg-white rounded-t-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold text-gray-900">Tambah History</h2>
+            <h2 class="text-xl font-bold text-gray-900">Add History</h2>
             <button @click="showCreateModal = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -381,6 +407,18 @@ const getCategoryName = (history: History) => {
             @submit="handleUpdate"
             @cancel="showEditModal = false"
           />
+        </div>
+      </div>
+    </Teleport>
+    <!-- Image Zoom Modal -->
+    <Teleport to="body">
+      <div 
+        v-if="showImageModal"
+        @click="closeImage"
+        class="fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center p-4"
+      >
+        <div class="max-w-md w-full">
+          <img :src="selectedImageUrl" alt="History Image" class="w-full rounded-lg" />
         </div>
       </div>
     </Teleport>
