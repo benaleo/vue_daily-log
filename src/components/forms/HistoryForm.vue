@@ -25,6 +25,16 @@ const imagePreview = ref<string | null>(null)
 const { uploading, uploadImage } = useImageUpload()
 const { categories, fetchCategories, getOptionHistoryCategories } = useOptionHistoryCategories()
 
+const resetForm = () => {
+  name.value = ''
+  categoryId.value = ''
+  type.value = 'SPEND'
+  amount.value = 0
+  imageUrl.value = null
+  imageFile.value = null
+  imagePreview.value = null
+}
+
 onMounted(async () => {
   await fetchCategories()
 })
@@ -59,15 +69,6 @@ const handleFileChange = (event: Event) => {
   }
 }
 
-const resetForm = () => {
-  name.value = ''
-  categoryId.value = ''
-  type.value = 'SPEND'
-  amount.value = 0
-  imageUrl.value = null
-  imageFile.value = null
-  imagePreview.value = null
-}
 
 const handleSubmit = async () => {
   let finalImageUrl = imageUrl.value
