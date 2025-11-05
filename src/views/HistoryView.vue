@@ -18,7 +18,7 @@ const filterCategory = ref<number | ''>('')
 const filterDateStart = ref('')
 const filterDateEnd = ref('')
 
-const { histories, loading, fetchHistories, refresh } = useHistories()
+const { histories, loading, fetchHistories, refresh, displayedHistories, pageSize, setPageSize, hasMore, loadMore } = useHistories()
 const { categories, fetchCategories, getOptionHistoryCategories } = useOptionHistoryCategories()
 
 onMounted(async () => {
@@ -127,13 +127,33 @@ const handleDelete = async (id: number) => {
 const getCategoryName = (history: History) => {
   return history.category?.name || 'Uncategorized'
 }
+
+// Image zoom modal for history images
+const showImageModal = ref(false)
+const selectedImageUrl = ref('')
+const openImage = (url: string) => {
+  selectedImageUrl.value = url
+  showImageModal.value = true
+}
+const closeImage = () => {
+  showImageModal.value = false
+  selectedImageUrl.value = ''
+}
 </script>
 
 <template>
   <MainLayout title="History">
     <div class="p-4 space-y-4 relative">
       <!-- Filter Button -->
-      <div class="flex justify-end">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <label class="text-sm text-gray-600">Show</label>
+          <select :value="pageSize" @change="setPageSize(parseInt(($event.target as HTMLSelectElement).value))" class="px-2 py-1 border border-gray-300 rounded-md">
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
         <button 
           @click="showFilter = true"
           class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -152,7 +172,7 @@ const getCategoryName = (history: History) => {
 
       <div v-else class="space-y-3">
         <div 
-          v-for="item in histories" 
+          v-for="item in displayedHistories" 
           :key="item.id"
           class="bg-white rounded-lg shadow p-4 border border-gray-200 relative"
         >
@@ -160,7 +180,8 @@ const getCategoryName = (history: History) => {
             <img 
               :src="item.image_url || 'https://via.placeholder.com/60/6366f1/ffffff?text=No+Image'" 
               :alt="item.name"
-              class="w-14 h-14 rounded-lg object-cover"
+              class="w-14 h-14 rounded-lg object-cover cursor-pointer hover:opacity-90"
+              @click="openImage(item.image_url || '')"
             >
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-gray-900 truncate">{{ item.name }}</h3>
@@ -220,6 +241,10 @@ const getCategoryName = (history: History) => {
 
         <div v-if="histories.length === 0" class="text-center py-12 text-gray-500">
           Tidak ada data history
+        </div>
+
+        <div v-else-if="hasMore" class="pt-2">
+          <button @click="loadMore" class="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Load More</button>
         </div>
       </div>
 
@@ -381,6 +406,18 @@ const getCategoryName = (history: History) => {
             @submit="handleUpdate"
             @cancel="showEditModal = false"
           />
+        </div>
+      </div>
+    </Teleport>
+    <!-- Image Zoom Modal -->
+    <Teleport to="body">
+      <div 
+        v-if="showImageModal"
+        @click="closeImage"
+        class="fixed inset-0 z-[100] bg-black bg-opacity-90 flex items-center justify-center p-4"
+      >
+        <div class="max-w-md w-full">
+          <img :src="selectedImageUrl" alt="History Image" class="w-full rounded-lg" />
         </div>
       </div>
     </Teleport>
