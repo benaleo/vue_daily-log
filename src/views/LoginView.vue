@@ -77,6 +77,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { authService } from '@/services/supabase'
+import { toast } from 'vue-sonner'
 
 const router = useRouter()
 
@@ -106,9 +107,11 @@ const handleLogin = async () => {
 
     if (data.session) {
       router.push('/home')
+      toast.success('Login successfully')
     }
   } catch (err) {
-    error.value = 'Terjadi kesalahan saat login'
+    error.value = 'Something went wrong'
+    toast.error('Something went wrong')
   } finally {
     loading.value = false
   }
