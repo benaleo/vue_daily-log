@@ -28,6 +28,7 @@ const closeBanner = () => {
   showZoomModal.value = false
   selectedBanner.value = ''
 }
+
 </script>
 
 <template>

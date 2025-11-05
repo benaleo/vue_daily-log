@@ -13,13 +13,13 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
-      meta: { requiresGuest: true }
+      meta: { requiresGuest: true, title: 'Login' }
     },
     {
       path: '/register',
       name: 'register',
       component: RegisterView,
-      meta: { requiresGuest: true }
+      meta: { requiresGuest: true, title: 'Register' }
     },
     {
       path: '/',
@@ -29,19 +29,19 @@ const router = createRouter({
       path: '/home',
       name: 'home',
       component: HomeView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: 'Home' }
     },
     {
       path: '/history',
       name: 'history',
       component: HistoryView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: 'History' }
     },
     {
       path: '/profile',
       name: 'profile',
       component: ProfileView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, title: 'Profile' }
     },
   ],
 })
