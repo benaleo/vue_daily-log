@@ -76,6 +76,15 @@ export const historyService = {
     query = query.order('created_at', { ascending: false })
 
     const { data, error } = await query
+
+    // if image_url is null set to public/img.jpg
+    if (data) {
+      data.forEach((history) => {
+        if (!history.image_url) {
+          history.image_url = 'public/img.jpg'
+        }
+      })
+    }
     
     return { data, error }
   },
