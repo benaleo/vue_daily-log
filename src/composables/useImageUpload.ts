@@ -5,7 +5,7 @@ export function useImageUpload() {
   const uploading = ref(false)
   const uploadError = ref<string | null>(null)
 
-  const generateFileName = (prefix: string, file: File): string => {
+  const generateFileName = (file: File, email: String, prefix: String): string => {
     // Sanitize prefix
     const safePrefix = prefix.replace(/[^a-z0-9]/gi, '_').toLowerCase()
     
@@ -22,7 +22,7 @@ export function useImageUpload() {
     return `${safePrefix}_${timestamp}.${extension}`
   }
 
-  const uploadImage = async (file: File, prefix: string = 'image') => {
+  const uploadImage = async (file: File,email: string = 'anonymous', prefix: string = 'image') => {
     uploading.value = true
     uploadError.value = null
 
@@ -34,7 +34,7 @@ export function useImageUpload() {
       if (!session?.user) throw new Error('User not authenticated')
       
       const userId = session.user.id
-      const fileName = generateFileName(prefix, file)
+      const fileName = generateFileName(file, email, prefix)
       const filePath = `${userId}/${fileName}`  // Remove 'uploads/' from path as it's the bucket name
 
       // Upload file to Supabase Storage
