@@ -9,6 +9,8 @@ import { useOptionHistoryCategories } from '@/composables/useOptionHistoryCatego
 import { bannerService, type Banner } from '@/services/bannerService'
 import { historyCategoryService, type HistoryCategory } from '@/services/historyCategoryService'
 import BannerForm from '@/components/forms/BannerForm.vue'
+import { toast } from 'vue-sonner'
+import ConfirmAlert from '@/components/ConfirmAlert.vue'
 
 const router = useRouter()
 
@@ -24,6 +26,7 @@ const showBannerSettings = ref(false)
 const showCategorySettings = ref(false)
 const showBannerForm = ref(false)
 const showCategoryForm = ref(false)
+const showLogoutConfirm = ref(false)
 const selectedBanner = ref<Banner | null>(null)
 const selectedCategory = ref<HistoryCategory | null>(null)
 const categoryName = ref('')
@@ -157,10 +160,13 @@ const savePassword = async () => {
 }
 
 const handleLogout = async () => {
-  if (confirm('Apakah Anda yakin ingin logout?')) {
-    await authService.logout()
-    router.push('/login')
-  }
+  showLogoutConfirm.value = true
+}
+
+const confirmLogout = async () => {
+  await authService.logout()
+  router.push('/login')
+  toast.success('Logout successfully')
 }
 
 // Banner Management
@@ -678,5 +684,13 @@ const handleCategoryDelete = async (id: number) => {
         </div>
       </div>
     </Teleport>
+    <!-- Logout Confirmation -->
+    <ConfirmAlert
+      v-model:isOpen="showLogoutConfirm"
+      @confirm="confirmLogout"
+      @cancel="showLogoutConfirm = false"
+    >
+      Are you sure you want to logout?
+    </ConfirmAlert>
   </MainLayout>
 </template>
