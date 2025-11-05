@@ -178,10 +178,10 @@ const closeImage = () => {
         >
           <div class="flex gap-3">
             <img 
-              :src="item.image_url || 'https://via.placeholder.com/60/6366f1/ffffff?text=No+Image'" 
+              :src="item.image_url || '/img.jpg'" 
               :alt="item.name"
               class="w-14 h-14 rounded-lg object-cover cursor-pointer hover:opacity-90"
-              @click="openImage(item.image_url || '')"
+              @click="item.image_url !== '/img.jpg' ? openImage(item.image_url || '') : null"
             >
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-gray-900 truncate">{{ item.name }}</h3>

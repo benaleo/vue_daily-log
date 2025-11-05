@@ -9,6 +9,8 @@ import { useOptionHistoryCategories } from '@/composables/useOptionHistoryCatego
 import { bannerService, type Banner } from '@/services/bannerService'
 import { historyCategoryService, type HistoryCategory } from '@/services/historyCategoryService'
 import BannerForm from '@/components/forms/BannerForm.vue'
+import { toast } from 'vue-sonner'
+import ConfirmAlert from '@/components/ConfirmAlert.vue'
 
 const router = useRouter()
 
@@ -24,6 +26,10 @@ const showBannerSettings = ref(false)
 const showCategorySettings = ref(false)
 const showBannerForm = ref(false)
 const showCategoryForm = ref(false)
+const showLogoutConfirm = ref(false)
+const showBannerDeleteConfirm = ref(false)
+const showCategoryDeleteConfirm = ref(false)
+const itemToDelete = ref<number | null>(null)
 const selectedBanner = ref<Banner | null>(null)
 const selectedCategory = ref<HistoryCategory | null>(null)
 const categoryName = ref('')
@@ -101,15 +107,18 @@ const saveProfile = async () => {
     const { error } = await authService.updateProfile(editName.value, finalAvatarUrl)
     if (error) throw error
     
-    successMessage.value = 'Profile berhasil diupdate'
+    successMessage.value = 'Profile updated successfully'
     await loadUserData()
     
     setTimeout(() => {
       showEditProfile.value = false
       successMessage.value = ''
     }, 1500)
+
+    toast.success(successMessage.value)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Gagal update profile'
+    errorMessage.value = error.message || 'Failed to update profile'
+    toast.error(errorMessage.value)
   }
 }
 
@@ -126,17 +135,17 @@ const savePassword = async () => {
   errorMessage.value = ''
   
   if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
-    errorMessage.value = 'Semua field harus diisi'
+    errorMessage.value = 'All fields must be filled'
     return
   }
   
   if (newPassword.value !== confirmPassword.value) {
-    errorMessage.value = 'Password baru dan konfirmasi tidak sama'
+    errorMessage.value = 'New password and confirmation do not match'
     return
   }
   
   if (newPassword.value.length < 6) {
-    errorMessage.value = 'Password minimal 6 karakter'
+    errorMessage.value = 'New password must be at least 6 characters long'
     return
   }
 
@@ -145,22 +154,27 @@ const savePassword = async () => {
     const { error } = await authService.updatePassword(newPassword.value)
     if (error) throw error
     
-    successMessage.value = 'Password berhasil diubah'
+    successMessage.value = 'Password updated successfully'
     
     setTimeout(() => {
       showEditPassword.value = false
       successMessage.value = ''
     }, 1500)
+    toast.success(successMessage.value)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Gagal ubah password'
+    errorMessage.value = error.message || 'Failed to change password'
+    toast.error(errorMessage.value)
   }
 }
 
 const handleLogout = async () => {
-  if (confirm('Apakah Anda yakin ingin logout?')) {
-    await authService.logout()
-    router.push('/login')
-  }
+  showLogoutConfirm.value = true
+}
+
+const confirmLogout = async () => {
+  await authService.logout()
+  router.push('/login')
+  toast.success('Logout successfully')
 }
 
 // Banner Management
@@ -184,29 +198,40 @@ const handleBannerSubmit = async (data: { name: string; url: string }) => {
     if (selectedBanner.value) {
       const { error } = await bannerService.update(selectedBanner.value.id, data)
       if (error) throw error
+      toast.success('Banner updated successfully')
     } else {
       const { error } = await bannerService.create(data)
       if (error) throw error
+      toast.success('Banner created successfully')
     }
     
     await loadBanners()
     showBannerForm.value = false
     selectedBanner.value = null
   } catch (error: any) {
-    alert(error.message || 'Gagal menyimpan banner')
+    toast.error(error.message || 'Failed to save banner')
   }
 }
 
-const handleBannerDelete = async (id: number) => {
-  if (!confirm('Yakin ingin menghapus banner ini?')) return
+const handleBannerDelete = (id: number) => {
+  itemToDelete.value = id
+  showBannerDeleteConfirm.value = true
+}
+
+const confirmBannerDelete = async () => {
+  if (!itemToDelete.value) return
   
   try {
-    const { error } = await bannerService.delete(id)
+    const { error } = await bannerService.delete(itemToDelete.value)
     if (error) throw error
     
     await loadBanners()
+    toast.success('Banner deleted successfully')
   } catch (error: any) {
-    alert(error.message || 'Gagal menghapus banner')
+    toast.error(error.message || 'Failed to delete banner')
+  } finally {
+    showBannerDeleteConfirm.value = false
+    itemToDelete.value = null
   }
 }
 
@@ -245,20 +270,29 @@ const handleCategorySubmit = async () => {
     selectedCategory.value = null
     categoryName.value = ''
   } catch (error: any) {
-    alert(error.message || 'Gagal menyimpan kategori')
+    toast.error(error.message || 'Failed to save category')
   }
 }
 
-const handleCategoryDelete = async (id: number) => {
-  if (!confirm('Yakin ingin menghapus kategori ini?')) return
+const handleCategoryDelete = (id: number) => {
+  itemToDelete.value = id
+  showCategoryDeleteConfirm.value = true
+}
+
+const confirmCategoryDelete = async () => {
+  if (!itemToDelete.value) return
   
   try {
-    const { error } = await historyCategoryService.delete(id)
+    const { error } = await historyCategoryService.delete(itemToDelete.value)
     if (error) throw error
     
     await loadCategories()
+    toast.success('Category deleted successfully')
   } catch (error: any) {
-    alert(error.message || 'Gagal menghapus kategori')
+    toast.error(error.message || 'Failed to delete category')
+  } finally {
+    showCategoryDeleteConfirm.value = false
+    itemToDelete.value = null
   }
 }
 </script>
@@ -490,7 +524,7 @@ const handleCategoryDelete = async (id: number) => {
       >
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Kelola Banner</h2>
+            <h2 class="text-xl font-bold text-gray-900">Setting Banner</h2>
             <button @click="showBannerSettings = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -574,6 +608,24 @@ const handleCategoryDelete = async (id: number) => {
     </Teleport>
 
     <!-- Category Settings Modal -->
+    <!-- Banner Delete Confirmation -->
+    <ConfirmAlert
+      v-model:isOpen="showBannerDeleteConfirm"
+      @confirm="confirmBannerDelete"
+      @cancel="showBannerDeleteConfirm = false"
+    >
+      Are you sure you want to delete this banner?
+    </ConfirmAlert>
+
+    <!-- Category Delete Confirmation -->
+    <ConfirmAlert
+      v-model:isOpen="showCategoryDeleteConfirm"
+      @confirm="confirmCategoryDelete"
+      @cancel="showCategoryDeleteConfirm = false"
+    >
+      Are you sure you want to delete this category?
+    </ConfirmAlert>
+
     <Teleport to="body">
       <div 
         v-if="showCategorySettings"
@@ -582,7 +634,7 @@ const handleCategoryDelete = async (id: number) => {
       >
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Kelola Kategori History</h2>
+            <h2 class="text-xl font-bold text-gray-900">Setting Kategori History</h2>
             <button @click="showCategorySettings = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -678,5 +730,13 @@ const handleCategoryDelete = async (id: number) => {
         </div>
       </div>
     </Teleport>
+    <!-- Logout Confirmation -->
+    <ConfirmAlert
+      v-model:isOpen="showLogoutConfirm"
+      @confirm="confirmLogout"
+      @cancel="showLogoutConfirm = false"
+    >
+      Are you sure you want to logout?
+    </ConfirmAlert>
   </MainLayout>
 </template>

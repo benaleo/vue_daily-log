@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
 import { computed } from 'vue'
-import MainLayout from '@/layouts/MainLayout.vue'
+import { Toaster } from 'vue-sonner'
+import 'vue-sonner/style.css'
 
 const route = useRoute()
 
@@ -25,6 +26,7 @@ const backButton = computed(() => {
 </script>
 
 <template>
+   <Toaster :rich-colors="true" position="top-right"/>
     <RouterView v-slot="{ Component }">
       <transition name="fade" mode="out-in">
         <component :is="Component" />
