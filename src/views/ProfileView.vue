@@ -502,7 +502,7 @@ const handleCategoryDelete = async (id: number) => {
             @click="openBannerCreate"
             class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
-            + Tambah Banner
+            + Add Banner
           </button>
 
           <div class="space-y-3">
@@ -556,7 +556,7 @@ const handleCategoryDelete = async (id: number) => {
       >
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">{{ selectedBanner ? 'Edit' : 'Tambah' }} Banner</h2>
+            <h2 class="text-xl font-bold text-gray-900">{{ selectedBanner ? 'Edit' : 'Add' }} Banner</h2>
             <button @click="showBannerForm = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -594,7 +594,7 @@ const handleCategoryDelete = async (id: number) => {
             @click="openCategoryCreate"
             class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
-            + Tambah Kategori
+            + Add Kategori
           </button>
 
           <div class="space-y-2">
@@ -641,7 +641,7 @@ const handleCategoryDelete = async (id: number) => {
       >
         <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
           <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">{{ selectedCategory ? 'Edit' : 'Tambah' }} Kategori</h2>
+            <h2 class="text-xl font-bold text-gray-900">{{ selectedCategory ? 'Edit' : 'Add' }} Kategori</h2>
             <button @click="showCategoryForm = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
