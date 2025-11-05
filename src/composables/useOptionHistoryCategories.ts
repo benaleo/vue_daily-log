@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { historyCategoryService, type HistoryCategory } from '@/services/historyCategoryService'
 
-export function useHistoryCategories() {
+export function useOptionHistoryCategories() {
   const categories = ref<HistoryCategory[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)

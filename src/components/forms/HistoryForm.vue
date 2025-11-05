@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useImageUpload } from '@/composables/useImageUpload'
-import { useHistoryCategories } from '@/composables/useHistoryCategories'
 import { authService } from '@/services/supabase'
 import type { History, HistoryType } from '@/services/historyService'
+import { useOptionHistoryCategories } from '@/composables/useOptionHistoryCategories'
 
 const props = defineProps<{
   history?: History | null
@@ -23,7 +23,7 @@ const imageFile = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
 
 const { uploading, uploadImage } = useImageUpload()
-const { categories, fetchCategories, getOptionHistoryCategories } = useHistoryCategories()
+const { categories, fetchCategories, getOptionHistoryCategories } = useOptionHistoryCategories()
 
 onMounted(async () => {
   await fetchCategories()
