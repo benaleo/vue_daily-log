@@ -2,16 +2,21 @@
 import { ref, onMounted } from 'vue'
 import MainLayout from '@/layouts/MainLayout.vue'
 import { authService } from '@/services/supabase'
+import { useBanners } from '@/composables/useBanners'
 
 const userName = ref('User')
 const showZoomModal = ref(false)
 const selectedBanner = ref('')
+
+const { banners, loading, fetchBanners } = useBanners()
 
 onMounted(async () => {
   const { session } = await authService.getSession()
   if (session?.user?.user_metadata?.name) {
     userName.value = session.user.user_metadata.name
   }
+  
+  await fetchBanners()
 })
 
 const openBanner = (imageUrl: string) => {
@@ -23,13 +28,6 @@ const closeBanner = () => {
   showZoomModal.value = false
   selectedBanner.value = ''
 }
-
-// Hardcoded banners
-const banners = [
-  { id: 1, url: 'https://via.placeholder.com/400x200/3b82f6/ffffff?text=Banner+1' },
-  { id: 2, url: 'https://via.placeholder.com/400x200/8b5cf6/ffffff?text=Banner+2' },
-  { id: 3, url: 'https://via.placeholder.com/400x200/ec4899/ffffff?text=Banner+3' }
-]
 </script>
 
 <template>
@@ -44,7 +42,16 @@ const banners = [
       <!-- Banners Section -->
       <div class="space-y-4">
         <h3 class="text-lg font-semibold text-gray-900">Promo & Banner</h3>
-        <div class="space-y-3">
+        
+        <div v-if="loading" class="text-center py-8 text-gray-500">
+          Loading banners...
+        </div>
+        
+        <div v-else-if="banners.length === 0" class="text-center py-8 text-gray-500">
+          Belum ada banner
+        </div>
+        
+        <div v-else class="space-y-3">
           <div 
             v-for="banner in banners" 
             :key="banner.id"
@@ -53,7 +60,7 @@ const banners = [
           >
             <img 
               :src="banner.url" 
-              :alt="`Banner ${banner.id}`"
+              :alt="banner.name"
               class="w-full h-40 object-cover"
             >
           </div>
