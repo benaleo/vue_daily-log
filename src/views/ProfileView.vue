@@ -27,6 +27,9 @@ const showCategorySettings = ref(false)
 const showBannerForm = ref(false)
 const showCategoryForm = ref(false)
 const showLogoutConfirm = ref(false)
+const showBannerDeleteConfirm = ref(false)
+const showCategoryDeleteConfirm = ref(false)
+const itemToDelete = ref<number | null>(null)
 const selectedBanner = ref<Banner | null>(null)
 const selectedCategory = ref<HistoryCategory | null>(null)
 const categoryName = ref('')
@@ -154,8 +157,10 @@ const savePassword = async () => {
       showEditPassword.value = false
       successMessage.value = ''
     }, 1500)
+    toast.success(successMessage.value)
   } catch (error: any) {
-    errorMessage.value = error.message || 'Gagal ubah password'
+    errorMessage.value = error.message || 'Failed to change password'
+    toast.error(errorMessage.value)
   }
 }
 
@@ -190,29 +195,40 @@ const handleBannerSubmit = async (data: { name: string; url: string }) => {
     if (selectedBanner.value) {
       const { error } = await bannerService.update(selectedBanner.value.id, data)
       if (error) throw error
+      toast.success('Banner updated successfully')
     } else {
       const { error } = await bannerService.create(data)
       if (error) throw error
+      toast.success('Banner created successfully')
     }
     
     await loadBanners()
     showBannerForm.value = false
     selectedBanner.value = null
   } catch (error: any) {
-    alert(error.message || 'Gagal menyimpan banner')
+    toast.error(error.message || 'Failed to save banner')
   }
 }
 
-const handleBannerDelete = async (id: number) => {
-  if (!confirm('Yakin ingin menghapus banner ini?')) return
+const handleBannerDelete = (id: number) => {
+  itemToDelete.value = id
+  showBannerDeleteConfirm.value = true
+}
+
+const confirmBannerDelete = async () => {
+  if (!itemToDelete.value) return
   
   try {
-    const { error } = await bannerService.delete(id)
+    const { error } = await bannerService.delete(itemToDelete.value)
     if (error) throw error
     
     await loadBanners()
+    toast.success('Banner deleted successfully')
   } catch (error: any) {
-    alert(error.message || 'Gagal menghapus banner')
+    toast.error(error.message || 'Failed to delete banner')
+  } finally {
+    showBannerDeleteConfirm.value = false
+    itemToDelete.value = null
   }
 }
 
@@ -251,20 +267,29 @@ const handleCategorySubmit = async () => {
     selectedCategory.value = null
     categoryName.value = ''
   } catch (error: any) {
-    alert(error.message || 'Gagal menyimpan kategori')
+    toast.error(error.message || 'Failed to save category')
   }
 }
 
-const handleCategoryDelete = async (id: number) => {
-  if (!confirm('Yakin ingin menghapus kategori ini?')) return
+const handleCategoryDelete = (id: number) => {
+  itemToDelete.value = id
+  showCategoryDeleteConfirm.value = true
+}
+
+const confirmCategoryDelete = async () => {
+  if (!itemToDelete.value) return
   
   try {
-    const { error } = await historyCategoryService.delete(id)
+    const { error } = await historyCategoryService.delete(itemToDelete.value)
     if (error) throw error
     
     await loadCategories()
+    toast.success('Category deleted successfully')
   } catch (error: any) {
-    alert(error.message || 'Gagal menghapus kategori')
+    toast.error(error.message || 'Failed to delete category')
+  } finally {
+    showCategoryDeleteConfirm.value = false
+    itemToDelete.value = null
   }
 }
 </script>
@@ -580,6 +605,24 @@ const handleCategoryDelete = async (id: number) => {
     </Teleport>
 
     <!-- Category Settings Modal -->
+    <!-- Banner Delete Confirmation -->
+    <ConfirmAlert
+      v-model:isOpen="showBannerDeleteConfirm"
+      @confirm="confirmBannerDelete"
+      @cancel="showBannerDeleteConfirm = false"
+    >
+      Are you sure you want to delete this banner?
+    </ConfirmAlert>
+
+    <!-- Category Delete Confirmation -->
+    <ConfirmAlert
+      v-model:isOpen="showCategoryDeleteConfirm"
+      @confirm="confirmCategoryDelete"
+      @cancel="showCategoryDeleteConfirm = false"
+    >
+      Are you sure you want to delete this category?
+    </ConfirmAlert>
+
     <Teleport to="body">
       <div 
         v-if="showCategorySettings"
