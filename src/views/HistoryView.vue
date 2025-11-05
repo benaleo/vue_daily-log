@@ -257,6 +257,7 @@ const closeImage = () => {
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
+         <span class="ml-2 font-bold"> Add History</span>
         </button>
       </div>
     </div>
@@ -368,7 +369,7 @@ const closeImage = () => {
       >
         <div class="bg-white rounded-t-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-bold text-gray-900">Tambah History</h2>
+            <h2 class="text-xl font-bold text-gray-900">Add History</h2>
             <button @click="showCreateModal = false" class="text-gray-500 hover:text-gray-700">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
