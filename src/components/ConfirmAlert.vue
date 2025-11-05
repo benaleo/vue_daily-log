@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="fade">
-      <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div v-if="isOpen" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/50">
         <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
           <h3 class="text-lg font-medium text-gray-900 mb-4">
             <slot name="title">Confirmation</slot>
