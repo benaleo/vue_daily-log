@@ -44,12 +44,14 @@ export interface HistoryFilters {
 
 export const historyService = {
   async getAll(filters?: HistoryFilters) {
+    const user = await supabase.auth.getUser()
     let query = supabase
       .from('histories')
       .select(`
         *,
         category:history_categories(id, name)
       `)
+      .eq('user_id', user.data.user?.id || '')
       .is('deleted_at', null)
 
     // Apply filters
@@ -90,6 +92,7 @@ export const historyService = {
   },
 
   async getById(id: number) {
+    const user = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('histories')
       .select(`
@@ -97,6 +100,7 @@ export const historyService = {
         category:history_categories(id, name)
       `)
       .eq('id', id)
+      .eq('user_id', user.data.user?.id || '')
       .is('deleted_at', null)
       .single()
     
@@ -104,9 +108,10 @@ export const historyService = {
   },
 
   async create(history: CreateHistoryDto) {
+    const user = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('histories')
-      .insert(history)
+      .insert({ ...history, user_id: user.data.user?.id })
       .select(`
         *,
         category:history_categories(id, name)
@@ -117,10 +122,12 @@ export const historyService = {
   },
 
   async update(id: number, history: UpdateHistoryDto) {
+    const user = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('histories')
       .update(history)
       .eq('id', id)
+      .eq('user_id', user.data.user?.id || '')
       .select(`
         *,
         category:history_categories(id, name)
@@ -131,11 +138,13 @@ export const historyService = {
   },
 
   async delete(id: number) {
+    const user = await supabase.auth.getUser()
     // Soft delete
     const { data, error } = await supabase
       .from('histories')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('user_id', user.data.user?.id || '')
       .select()
       .single()
     

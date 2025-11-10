@@ -60,6 +60,26 @@ CREATE INDEX IF NOT EXISTS idx_history_categories_not_deleted
   ON public.history_categories (id)
   WHERE deleted_at IS NULL;
 
+  -- 5. history_categories: tambahkan kolom jika belum ada
+ALTER TABLE public.history_categories
+  ADD COLUMN IF NOT EXISTS user_id uuid;
+
+-- 6. Jika kolom ada tapi bukan uuid, ubah tipenya menjadi uuid
+ALTER TABLE public.history_categories
+  ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
+
+-- 7. Hapus constraint FK lama jika ada
+ALTER TABLE public.history_categories
+  DROP CONSTRAINT IF EXISTS history_categories_user_id_fkey;
+
+-- 8. Tambahkan constraint FK baru ke auth.users(id)
+ALTER TABLE public.history_categories
+  ADD CONSTRAINT history_categories_user_id_fkey
+  FOREIGN KEY (user_id)
+  REFERENCES auth.users (id)
+  ON DELETE SET NULL
+  ON UPDATE CASCADE;
+
 ------------------------------------ ## -----------------------------------------
 
 -- HISTORIES
@@ -107,3 +127,46 @@ CREATE INDEX IF NOT EXISTS idx_histories_not_deleted ON public.histories (catego
 -- 6) Indeks untuk pencarian berdasarkan tipe/amount (opsional)
 CREATE INDEX IF NOT EXISTS idx_histories_type ON public.histories (type);
 CREATE INDEX IF NOT EXISTS idx_histories_amount ON public.histories (amount);
+
+-- 1) Tambah kolom user_id nullable (jika belum ada)
+ALTER TABLE public.histories
+ADD COLUMN IF NOT EXISTS user_id uuid;
+
+-- 2) Buat foreign key yang merefer ke auth.users(id)
+ALTER TABLE public.histories
+ADD CONSTRAINT histories_user_id_fkey
+FOREIGN KEY (user_id)
+REFERENCES auth.users (id)
+ON DELETE SET NULL
+ON UPDATE CASCADE;
+
+
+------------------------------------ ## -----------------------------------------
+
+-- Create table user_followers in public schema (adjust schema if needed)
+CREATE TABLE IF NOT EXISTS public.user_followers (
+  from_id uuid NOT NULL,
+  with_id uuid NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (from_id, with_id)
+);
+
+-- Add foreign key constraints referencing auth.users(id)
+-- If constraint names already exist, these statements will fail; drop existing constraints first if needed.
+
+ALTER TABLE public.user_followers
+  ADD CONSTRAINT user_followers_from_id_fkey
+  FOREIGN KEY (from_id)
+  REFERENCES auth.users (id)
+  ON DELETE CASCADE
+  ON UPDATE CASCADE;
+
+ALTER TABLE public.user_followers
+  ADD CONSTRAINT user_followers_with_id_fkey
+  FOREIGN KEY (with_id)
+  REFERENCES auth.users (id)
+  ON DELETE CASCADE
+  ON UPDATE CASCADE;
+
+-- Optional: index created_at for querying recent follows
+CREATE INDEX IF NOT EXISTS idx_user_followers_created_at ON public.user_followers (created_at DESC);
