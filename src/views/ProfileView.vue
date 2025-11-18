@@ -17,7 +17,8 @@ const router = useRouter()
 const user = ref({
   name: '',
   email: '',
-  avatar: ''
+  avatar: '',
+  role: ''
 })
 
 const showEditProfile = ref(false)
@@ -60,7 +61,8 @@ const loadUserData = async () => {
     user.value = {
       name: session.user.user_metadata?.name || 'User',
       email: session.user.email || '',
-      avatar: session.user.user_metadata?.avatar_url || '/img.jpg'
+      avatar: session.user.user_metadata?.avatar_url || '/img.jpg',
+      role: session.user.role || 'UNKNOWN'
     }
   }
 }
@@ -341,6 +343,7 @@ const confirmCategoryDelete = async () => {
         
         <!-- Banner Settings Button -->
         <button 
+        v-if="user.role === 'ADMIN'"
           @click="openBannerSettings"
           class="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center justify-center gap-2"
         >

@@ -77,7 +77,19 @@ async signUp(email: string, password: string, name: string) {
 
   async getSession() {
     const { data: { session }, error } = await supabase.auth.getSession()
+
+    // add session role name from public.users
+    if (session?.user) {
+      const { data, error } = await this.getRole(session.user.id)
+      if (error) throw error
+      session.user.role = data?.role || 'UNKNOWN'
+    }
     return { session, error }
+  },
+
+  async getRole(id: string) {
+    const { data, error } = await supabase.from('users').select('role').eq('id', id).single()
+    return { data, error }
   },
 
   async updateProfile(name: string, avatarUrl?: string) {
