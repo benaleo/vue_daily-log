@@ -6,6 +6,7 @@ import { useChatRoom } from "@/composables/chat/useChatRoomMessages";
 import { useUser } from "@/composables/useUser";
 import MainLayout from "@/layouts/MainLayout.vue";
 import { Send } from "lucide-vue-next";
+import { supabase } from "@/services/supabase";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -50,6 +51,29 @@ const handleSendMessage = async () => {
   try {
     console.log('Sending message with user ID:', user.value?.id)
     await sendMessage()
+    // Broadcast to recipient topic so their list updates and they get notified
+    try {
+      if (otherUser.value?.id && room.value?.id) {
+        const channel = supabase.channel(`user_${otherUser.value.id}`)
+        await channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            channel.send({
+              type: 'broadcast',
+              event: 'new_message',
+              payload: {
+                roomId: room.value?.id,
+                fromId: user.value?.id,
+                preview: message,
+              },
+            })
+            // best-effort cleanup
+            try { channel.unsubscribe() } catch {}
+          }
+        })
+      }
+    } catch (e) {
+      console.warn('Broadcast to recipient failed (non-fatal):', e)
+    }
     newMessage.value = ''
     // Reset textarea height
     const textarea = document.querySelector('textarea')
@@ -216,7 +240,7 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
 
       <div
         v-else
-        class="flex-1 overflow-y-auto p-4 space-y-4 messages-container"
+        class="flex-1 overflow-y-auto p-4 space-y-4 messages-container mb-24"
       >
         <div
           v-for="message in messages"

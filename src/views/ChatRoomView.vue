@@ -25,6 +25,7 @@ const {
 
 // Set up real-time subscription for room updates
 let subscription: any = null
+let userTopic: any = null
 
 // Watch for user changes to set up subscription
 watch(() => user.value?.id, (newUserId) => {
@@ -37,6 +38,19 @@ watch(() => user.value?.id, (newUserId) => {
   // Set up new subscription if user is logged in
   if (newUserId) {
     setupRealtimeUpdates()
+    // subscribe to user topic for new_message broadcasts
+    try {
+      if (userTopic) {
+        supabase.removeChannel(userTopic)
+        userTopic = null
+      }
+      userTopic = supabase
+        .channel(`user_${newUserId}`)
+        .on('broadcast', { event: 'new_message' }, () => {
+          refreshRooms()
+        })
+        .subscribe()
+    } catch {}
   }
 }, { immediate: true })
 
@@ -65,6 +79,10 @@ const setupRealtimeUpdates = () => {
 onUnmounted(() => {
   if (subscription) {
     supabase.removeChannel(subscription)
+  }
+  if (userTopic) {
+    try { supabase.removeChannel(userTopic) } catch {}
+    userTopic = null
   }
 })
 
