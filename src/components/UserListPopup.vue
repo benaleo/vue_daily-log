@@ -25,13 +25,12 @@
         
         <ul v-else>
           <li v-for="user in users" :key="user.id" class="p-4 border-b hover:bg-gray-50">
-            <div class="flex items-center">
+            <button class="flex items-center" @click="handleUserClick(user)">
               <img :src="user.avatar_url || '/img.jpg'" class="w-10 h-10 rounded-full mr-3" />
               <div>
                 <p class="font-medium">{{ user.name }}</p>
-                <p class="text-sm text-gray-500">{{ user.email }}</p>
               </div>
-            </div>
+            </button>
           </li>
         </ul>
 
@@ -52,6 +51,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useUserList } from '@/composables/useUserList'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const props = defineProps({
   isOpen: {
@@ -75,6 +77,12 @@ const { users, loading, error, hasMore, fetchUsers, resetPagination } = useUserL
 const title = computed(() => 
   props.type === 'followers' ? 'Followers' : 'Following'
 )
+
+const handleUserClick = (user: any) => {
+  // navigate to profile?id=
+  router.push(`/profile?id=${user.id}`)
+  emit('close')
+}
 
 const loadUsers = async () => {
   await fetchUsers(props.userId, props.type)
