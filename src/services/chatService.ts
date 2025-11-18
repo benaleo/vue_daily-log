@@ -58,7 +58,7 @@ export const chatService = {
           user:users!chat_room_users_user_id_fkey(id,email,name,avatar_url)
         ),
         membership:chat_room_users!inner(
-          user:users!chat_room_users_user_id_fkey(id)
+          user:users!chat_room_users_user_id_fkey(id, name)
         ),
         messages:chat_messages(id, content, created_at)
       `
@@ -68,11 +68,6 @@ export const chatService = {
       .not("messages", "is", null)
       .not("membership.user", "is", null)
       .order("last_message_at", { ascending: false, nullsFirst: false });
-
-    // Basic search on room name if provided
-    if (search && search.trim()) {
-      query = query.ilike("name", `%${search.trim()}%`);
-    }
 
     const { data, error } = await query
       // order and limit on nested messages to get only the latest one
@@ -96,23 +91,24 @@ export const chatService = {
           avatar_url: u.avatar_url || undefined,
           cru_id: u.cru_id,
         }));
-        let roomName = '';
-        let unreadCount = 0;
-        if (r.room_type === 'PRIVATE') {
-          const otherUserId = users.find(u => u.id !== userId)?.id;
-          roomName = users.find(u => u.id === otherUserId)?.full_name || '';
+      let roomName = "";
+      let unreadCount = 0;
+      if (r.room_type === "PRIVATE") {
+        const otherUserId = users.find((u) => u.id !== userId)?.id;
+        roomName = users.find((u) => u.id === otherUserId)?.full_name || "";
 
-          const cruId = users.find(u => u.id === userId)?.cru_id;
-          unreadCount = await supabase
+        const cruId = users.find((u) => u.id === userId)?.cru_id;
+        unreadCount =
+          (await supabase
             .from("chat_messages")
             .select("id", { count: "exact" })
             .eq("room_id", r.id)
             .eq("to_id", cruId)
             .eq("is_read", false)
-            .then((res) => res.count) || 0;
-        } else {
-          roomName = r.name || '';
-        }
+            .then((res) => res.count)) || 0;
+      } else {
+        roomName = r.name || "";
+      }
       const mapped: ChatRoom = {
         id: r.id,
         name: roomName,
@@ -128,7 +124,14 @@ export const chatService = {
       return mapped;
     });
 
-    return Promise.all(rooms);
+    const result = await Promise.all(rooms);
+
+    if (search && search.trim().length > 2) {
+      const s = search.trim().toLowerCase();
+      return result.filter((r) => r.name.toLowerCase().includes(s));
+    }
+
+    return result;
   },
 
   async getChatRoomByRoomId(roomId: string): Promise<ChatRoom | null> {
@@ -154,6 +157,8 @@ export const chatService = {
     if (!data) return null;
 
     const row: any = data as any;
+
+    console.log("row", JSON.stringify(row));
     const users: ChatUser[] = (row.members || [])
       .map((m: any) => ({
         ...m.user,
@@ -322,7 +327,6 @@ export const chatService = {
         console.error("Error inserting message:", messageError);
         throw messageError;
       }
-
     } catch (error) {
       console.error("Error in chatService.sendMessage:", error);
       throw error;
@@ -341,12 +345,11 @@ export const chatService = {
   },
 
   async markMessagesAsRead(roomId: string, fromId: string): Promise<void> {
-    
     const room = await this.getChatRoomByRoomId(roomId);
-    console.log('room', JSON.stringify(room))
-    const cruId = room?.users?.find(u => u.id === fromId)?.cru_id;
-    console.log('cruId', cruId)
-    console.log('fromId', fromId)
+    console.log("room", JSON.stringify(room));
+    const cruId = room?.users?.find((u) => u.id === fromId)?.cru_id;
+    console.log("cruId", cruId);
+    console.log("fromId", fromId);
     if (!room) return;
 
     const { error } = await supabase

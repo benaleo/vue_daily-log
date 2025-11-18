@@ -21,7 +21,12 @@ export function useChatRooms() {
     try {
       error.value = null
       loading.value = true
-      const result = await chatService.getChatRooms(sessionUser.user_id, searchQuery.value)
+      let result: ChatRoom[] = []
+      if (searchQuery.value.trim().length > 2) {
+        result = await chatService.getChatRooms(sessionUser.user_id, searchQuery.value)
+      } else {
+        result = await chatService.getChatRooms(sessionUser.user_id)
+      }
       // Only include rooms with non-empty message history
       rooms.value = (result || []).filter(r => !!(r.last_message && r.last_message.trim()) || !!r.last_message_at)
     } catch (err) {
@@ -47,7 +52,7 @@ export function useChatRooms() {
   // Debounce search
   const handleSearch = () => {
     clearTimeout(searchTimeout)
-    searchTimeout = window.setTimeout(fetchRooms, 300)
+    searchTimeout = window.setTimeout(fetchRooms, 1000)
   }
 
   onUnmounted(() => {
