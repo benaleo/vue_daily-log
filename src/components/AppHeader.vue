@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, defineProps } from 'vue'
 import ProfileDrawer from './ProfileDrawer.vue'
+import SearchDrawer from './SearchDrawer.vue'
 
 defineProps<{
   title: string
@@ -10,6 +11,7 @@ defineProps<{
 }>()
 
 const showProfileDrawer = ref(false)
+const showSearchDrawer = ref(false)
 </script>
 
 <template>
@@ -25,6 +27,17 @@ const showProfileDrawer = ref(false)
     </router-link>
     <h1 class="text-lg font-semibold text-gray-900 text-center flex-1">{{ title }}</h1>
     
+    <!-- Search Button -->
+    <button 
+      @click="showSearchDrawer = true"
+      class="absolute right-12 text-gray-600 hover:text-gray-900"
+      aria-label="Search"
+    >
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    </button>
+    
     <!-- Profile/Settings Button -->
     <button 
       @click="showProfileDrawer = true"
@@ -36,6 +49,9 @@ const showProfileDrawer = ref(false)
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     </button>
+    
+    <!-- Search Drawer -->
+    <SearchDrawer v-model="showSearchDrawer" />
     
     <!-- Profile Drawer -->
     <ProfileDrawer v-model="showProfileDrawer" />
