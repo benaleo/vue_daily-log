@@ -33,7 +33,6 @@ export function useUser() {
       if (profileError) throw profileError
       
       user.value = { ...authUser, ...profile }
-      console.log('user.value', user.value)
       return user.value
     } catch (err) {
       error.value = err as Error

@@ -119,8 +119,6 @@ const handleMessage = async () => {
       toId: user.value.id,
     });
 
-    console.log('Chat room result:', result);
-
     if (result?.room?.id) {
       router.push(`/chat/${currentUserData.id}/${result.room.id}?type=PRIVATE`);
     } else {

@@ -87,8 +87,6 @@ export const userFollowers = {
   },
 
   async follow(userId: string, targetUserId: string) {
-    console.log('userId', userId)
-    console.log('targetUserId', targetUserId)
     const { data, error } = await supabase
       .from('user_followers')
       .insert([

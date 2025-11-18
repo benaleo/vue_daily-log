@@ -111,8 +111,8 @@ onUnmounted(() => {
 const selectRoom = (room: any) => {
   router.push({
     name: 'chat-room',
-    params: { roomId: room.id },
-    query: { type: room.room_type.toLowerCase() }
+    params: { roomId: room.id, fromId: sessionUser.value.user_id },
+    query: { type: room.room_type.toUpperCase() }
   })
 }
 

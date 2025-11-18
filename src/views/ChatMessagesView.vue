@@ -3,7 +3,7 @@ import { ref, computed, onMounted, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useChatRoom } from "@/composables/chat/useChatRoomMessages";
-import { useUser } from "@/composables/useUser";
+import { useSessionUser } from "@/composables/useSessionUser";
 import MainLayout from "@/layouts/MainLayout.vue";
 import { Send } from "lucide-vue-next";
 import { supabase } from "@/services/supabase";
@@ -11,13 +11,13 @@ import { supabase } from "@/services/supabase";
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const { user, getCurrentUser } = useUser();
+const { sessionUser, ensureSession } = useSessionUser();
 const showMenu = ref(false);
 
 // Get current user when component mounts
 onMounted(async () => {
-  if (!user.value) {
-    await getCurrentUser()
+  if (!sessionUser.value.user_id) {
+    await ensureSession()
   }
 })
 
@@ -31,25 +31,23 @@ const {
   sendMessage,
   scrollToBottom,
   error,
-} = useChatRoom(computed(() => user.value?.id));
+} = useChatRoom(computed(() => sessionUser.value.user_id));
 
 const handleSendMessage = async () => {
   const message = newMessage.value.trim()
   if (!message) return
   
   // Ensure user is logged in
-  if (!user.value) {
-    const currentUser = await getCurrentUser()
-    if (!currentUser) {
+  if (!sessionUser.value.user_id) {
+    const current = await ensureSession()
+    if (!current?.user_id) {
       console.error('User not authenticated')
-      // Redirect to login or show error
       router.push('/login')
       return
     }
   }
   
   try {
-    console.log('Sending message with user ID:', user.value?.id)
     await sendMessage()
     // Broadcast to recipient topic so their list updates and they get notified
     try {
@@ -62,7 +60,7 @@ const handleSendMessage = async () => {
               event: 'new_message',
               payload: {
                 roomId: room.value?.id,
-                fromId: user.value?.id,
+                fromId: sessionUser.value.user_id,
                 preview: message,
               },
             })
@@ -246,16 +244,16 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
           v-for="message in messages"
           :key="message.id"
           :class="{
-            'flex justify-end': message.user_id === user?.id,
-            flex: message.user_id !== user?.id,
+            'flex justify-end': message.user_id === sessionUser.user_id,
+            flex: message.user_id !== sessionUser.user_id,
           }"
         >
           <div
             :class="{
               'bg-blue-500 text-white rounded-l-xl rounded-br-xl':
-                message.user_id === user?.id,
+                message.user_id === sessionUser.user_id,
               'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-r-xl rounded-bl-xl':
-                message.user_id !== user?.id,
+                message.user_id !== sessionUser.user_id,
               'max-w-xs md:max-w-md lg:max-w-lg xl:max-w-2xl px-4 py-2': true,
             }"
           >

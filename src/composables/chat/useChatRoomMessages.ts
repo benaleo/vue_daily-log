@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { chatService, type ChatRoom, type ChatMessage, type ChatUser } from '@/services/chatService'
 import { supabase } from '@/services/supabase'
 import { useUser } from '@/composables/useUser'
+import { toast } from 'vue-sonner'
 
 export function useChatRoom(userIdRef?: Ref<string | undefined>) {
   const { t } = useI18n()
@@ -37,16 +38,13 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
       error.value = null
       const roomData = await chatService.getChatRoomByRoomId(roomId.value)
       
-      console.log('roomData', roomData)
       if (!roomData) {
-        console.log('No room found, redirecting to chat list')
         router.push('/chat')
         return
       }
       
       room.value = roomData
 
-      console.log('room', room.value)
       await fetchMessages()
     } catch (err) {
       console.error('Error in fetchRoom:', err)
@@ -65,7 +63,6 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
     
     try {
       const room = await chatService.getChatRoomByRoomId(roomId.value)
-      console.log('fetch message roomId', room?.id)
       if(room) {
         const fetchedMessages = await chatService.getChatMessages(room?.id);
       messages.value = fetchedMessages || [];
@@ -88,15 +85,15 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
     const content = contentOverride || newMessage.value.trim()
     
     if (!content) {
-      console.log('No message content')
+      toast.error('Please enter a message')
       return
     }
     if (!fromId.value) {
-      console.log('No user ID')
+      toast.error('Please log in to send messages')
       return
     }
     if (!roomId.value) {
-      console.log('No room ID')
+      toast.error('Please select a chat room')
       return
     }
 
@@ -105,11 +102,8 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
     }
 
     try {
-      console.log('Calling chatService.sendMessage')
       await chatService.sendMessagePrivate(roomId.value, fromId.value, content, "PRIVATE")
-      console.log('Message sent successfully, fetching messages...')
       await fetchMessages()
-      console.log('Messages fetched after sending')
     } catch (err) {
       console.error('Error in sendMessage:', err)
       error.value = err as Error

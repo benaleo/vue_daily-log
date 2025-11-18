@@ -2,6 +2,7 @@
 import { ref, defineProps } from 'vue'
 import ProfileDrawer from './ProfileDrawer.vue'
 import SearchDrawer from './SearchDrawer.vue'
+import { useSessionUser } from '@/composables/useSessionUser'
 
 defineProps<{
   title: string
@@ -12,6 +13,9 @@ defineProps<{
 
 const showProfileDrawer = ref(false)
 const showSearchDrawer = ref(false)
+
+const { ensureSession } = useSessionUser()
+ensureSession()
 </script>
 
 <template>

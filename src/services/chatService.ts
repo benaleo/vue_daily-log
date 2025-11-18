@@ -6,6 +6,7 @@ export interface ChatUser {
   email: string;
   full_name: string;
   avatar_url?: string;
+  cru_id?: string;
 }
 
 export interface ChatMessage {
@@ -130,7 +131,7 @@ export const chatService = {
           "room_type",
           "last_message_at",
           "created_at",
-          "members:chat_room_users(user:users!chat_room_users_user_id_fkey(id, email, name, avatar_url))",
+          "members:chat_room_users(id, user:users!chat_room_users_user_id_fkey(id, email, name, avatar_url))",
         ].join(", ")
       )
       .eq("id", roomId)
@@ -141,13 +142,17 @@ export const chatService = {
 
     const row: any = data as any;
     const users: ChatUser[] = (row.members || [])
-      .map((m: any) => m.user)
+      .map((m: any) => ({
+        ...m.user,
+        cru_id: m.id,
+      }))
       .filter(Boolean)
       .map((u: any) => ({
         id: u.id,
         email: u.email,
         full_name: u.name,
         avatar_url: u.avatar_url || undefined,
+        cru_id: u.cru_id,
       }));
 
     const room: ChatRoom = {
@@ -180,7 +185,7 @@ export const chatService = {
           "room_type",
           "last_message_at",
           "created_at",
-          "members:chat_room_users(user:users!chat_room_users_user_id_fkey(id, email, name, avatar_url))",
+          "members:chat_room_users(id, user:users!chat_room_users_user_id_fkey(id, email, name, avatar_url))",
         ].join(", ")
       )
       .eq("room_type", "PRIVATE")
@@ -192,13 +197,17 @@ export const chatService = {
 
     const row: any = data as any;
     const users: ChatUser[] = (row.members || [])
-      .map((m: any) => m.user)
+      .map((m: any) => ({
+        ...m.user,
+        cru_id: m.id,
+      }))
       .filter(Boolean)
       .map((u: any) => ({
         id: u.id,
         email: u.email,
         full_name: u.name,
         avatar_url: u.avatar_url || undefined,
+        cru_id: u.cru_id,
       }));
 
     const room: ChatRoom = {
@@ -232,7 +241,6 @@ export const chatService = {
   },
 
   async getChatMessages(roomId: string): Promise<ChatMessage[]> {
-    console.log("get chat message from roomid", roomId);
     const { data, error } = await supabase
       .from("chat_messages")
       .select(
@@ -244,15 +252,11 @@ export const chatService = {
 
     if (error) throw error;
 
-    console.log("size data", data.length);
-
     // Map from_id -> user_id for UI compatibility
     const mapped = (data || []).map((m: any) => ({
       ...m,
       user_id: m.from.user.id,
     })) as ChatMessage[];
-
-    console.log("mapped chat", mapped);
 
     return mapped;
   },
@@ -301,14 +305,11 @@ export const chatService = {
         })
         .select();
 
-      console.log("Message insert result:", { messageData, messageError });
-
       if (messageError) {
         console.error("Error inserting message:", messageError);
         throw messageError;
       }
 
-      console.log("Message sent successfully");
     } catch (error) {
       console.error("Error in chatService.sendMessage:", error);
       throw error;
@@ -326,15 +327,20 @@ export const chatService = {
     if (roomError) throw roomError;
   },
 
-  async markMessagesAsRead(toId: string, fromId: string): Promise<void> {
-    const room = await this.getChatRoomByRoomId(toId);
+  async markMessagesAsRead(roomId: string, fromId: string): Promise<void> {
+    
+    const room = await this.getChatRoomByRoomId(roomId);
+    console.log('room', JSON.stringify(room))
+    const cruId = room?.users?.find(u => u.id === fromId)?.cru_id;
+    console.log('cruId', cruId)
+    console.log('fromId', fromId)
     if (!room) return;
 
     const { error } = await supabase
       .from("chat_messages")
       .update({ is_read: true })
       .eq("room_id", room.id)
-      .eq("to_id", fromId)
+      .eq("to_id", cruId)
       .eq("is_read", false);
 
     if (error) throw error;
