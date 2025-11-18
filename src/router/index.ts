@@ -4,6 +4,7 @@ import HistoryView from '../views/HistoryView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import ChatView from '../views/ChatView.vue'
 import { authGuard } from './auth-guard'
 
 const router = createRouter({
@@ -42,6 +43,12 @@ const router = createRouter({
       name: 'profile',
       component: ProfileView,
       meta: { requiresAuth: true, title: 'Profile' }
+    },
+    {
+      path: '/chat',
+      name: 'chat',
+      component: ChatView,
+      meta: { requiresAuth: true, title: 'Chat' }
     },
   ],
 })
