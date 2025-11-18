@@ -37,7 +37,9 @@ onMounted(async () => {
   const { sessionUser: s } = await authService.getSession()
   sessionUser.value = s
   refreshRooms()
+
 })
+
 
 // Set up real-time subscription for room updates
 let subscription: any = null
@@ -45,6 +47,7 @@ let userTopic: any = null
 
 // Watch for user changes to set up subscription
 watch(() => sessionUser.value.user_id, (newUserId) => {
+
   // Clean up existing subscription
   if (subscription) {
     supabase.removeChannel(subscription)
@@ -178,6 +181,9 @@ const getRoomAvatar = (room: any) => {
   }
   return room.avatar
 }
+
+  console.log('rooms', rooms)
+
 </script>
 
 

@@ -54,6 +54,7 @@ export const chatService = {
         last_message_at,
         created_at,
         members:chat_room_users(
+          id,
           user:users!chat_room_users_user_id_fkey(id,email,name,avatar_url)
         ),
         membership:chat_room_users!inner(
@@ -80,24 +81,35 @@ export const chatService = {
 
     if (error) throw error;
 
-    const rooms = ((data as any[]) || []).map((r: any) => {
+    const rooms = ((data as any[]) || []).map(async (r: any) => {
       const last =
         Array.isArray(r.messages) && r.messages.length > 0
           ? r.messages[0]
           : null;
       const users: ChatUser[] = (r.members || [])
-        .map((m: any) => m.user)
+        .map((m: any) => ({ ...m.user, cru_id: m.id }))
         .filter(Boolean)
         .map((u: any) => ({
           id: u.id,
           email: u.email,
           full_name: u.name,
           avatar_url: u.avatar_url || undefined,
+          cru_id: u.cru_id,
         }));
         let roomName = '';
+        let unreadCount = 0;
         if (r.room_type === 'PRIVATE') {
           const otherUserId = users.find(u => u.id !== userId)?.id;
           roomName = users.find(u => u.id === otherUserId)?.full_name || '';
+
+          const cruId = users.find(u => u.id === userId)?.cru_id;
+          unreadCount = await supabase
+            .from("chat_messages")
+            .select("id", { count: "exact" })
+            .eq("room_id", r.id)
+            .eq("to_id", cruId)
+            .eq("is_read", false)
+            .then((res) => res.count) || 0;
         } else {
           roomName = r.name || '';
         }
@@ -111,11 +123,12 @@ export const chatService = {
         created_at: r.created_at,
         last_message: last?.content ?? undefined,
         users,
+        unread_count: unreadCount,
       };
       return mapped;
     });
 
-    return rooms;
+    return Promise.all(rooms);
   },
 
   async getChatRoomByRoomId(roomId: string): Promise<ChatRoom | null> {
