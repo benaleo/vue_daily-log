@@ -1,51 +1,50 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
-import { authService } from '@/services/supabase'
 import { userFollowers } from '@/services/userFollowersService'
+import { useGetUserProfile } from '@/composables/useGetUserProfile'
 import { toast } from 'vue-sonner'
 
 const router = useRouter()
 const route = useRoute()
 
-const user = ref({
-  id: '',
-  name: '',
-  email: '',
-  avatar: '',
-  role: ''
-})
+const { 
+  user, 
+  loading, 
+  error, 
+  isCurrentUser, 
+  fetchUserProfile, 
+  fetchCurrentUser 
+} = useGetUserProfile()
 
 const stats = ref({
   followers: 0,
   following: 0
 })
 
-const loading = ref(true)
-
-onMounted(async () => {
-  await loadUserData()
-  await loadUserStats()
-})
-
 const loadUserData = async () => {
-  const { session } = await authService.getSession()
-  if (session?.user) {
-    user.value = {
-      id: session.user.id,
-      name: session.user.user_metadata?.name || 'User',
-      email: session.user.email || '',
-      avatar: session.user.user_metadata?.avatar_url || '/img.jpg',
-      role: session.user.role || 'UNKNOWN'
+  try {
+    const userId = route.query.id?.toString()
+    
+    // If no ID in URL, fetch current user
+    if (!userId) {
+      await fetchCurrentUser()
+    } else {
+      // Load user by ID using the composable
+      await fetchUserProfile(userId)
     }
+  } catch (err) {
+    console.error('Error loading user data:', err)
+    toast.error('Failed to load user profile')
+    router.push('/')
   }
 }
 
 const loadUserStats = async () => {
   try {
     loading.value = true
-    const userId = route.query.id?.toString() || user.value.id
+    const userId = route.query.id?.toString() || user.value?.id
     
     if (!userId) return
     
@@ -58,13 +57,19 @@ const loadUserStats = async () => {
       followers,
       following
     }
-  } catch (error) {
-    console.error('Error loading user stats:', error)
+  } catch (err) {
+    console.error('Error loading user stats:', err)
     toast.error('Failed to load user statistics')
   } finally {
     loading.value = false
   }
 }
+
+// Watch for route changes to load different user profiles
+watch(() => route.query.id, async () => {
+  await loadUserData()
+  await loadUserStats()
+}, { immediate: true })
 
 const copyToClipboard = (text: string) => {
   if (typeof window !== 'undefined') {
@@ -81,14 +86,15 @@ const copyToClipboard = (text: string) => {
       <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
         <div class="flex flex-col items-center">
           <img 
-            :src="user.avatar" 
-            :alt="user.name"
+            :src="user?.avatar_url || '/img.jpg'" 
+            :alt="user?.name || 'User'"
             class="w-24 h-24 rounded-full object-cover border-4 border-blue-100"
           >
-          <h2 class="mt-4 text-xl font-bold text-gray-900">{{ user.name }}</h2>
-          <div class="group flex items-center gap-2 mt-1">
-            <p class="text-gray-600 group-hover:text-blue-500 transition-colors duration-300 group-hover:font-bold">{{ user.email }}</p>
+          <h2 class="mt-4 text-xl font-bold text-gray-900">{{ user?.name }}</h2>
+          <div v-if="(isCurrentUser && user?.email) || (!isCurrentUser && user?.email)" class="group flex items-center gap-2 mt-1">
+            <p class="text-gray-600 group-hover:text-blue-500 transition-colors duration-300 group-hover:font-bold">{{ user?.email }}</p>
             <button 
+              v-if="isCurrentUser"
               @click="copyToClipboard(user.email)"
               class="text-gray-400 hover:text-blue-500 transition-colors cursor-pointer group-hover:text-blue-500"
               title="Copy email"
@@ -98,7 +104,7 @@ const copyToClipboard = (text: string) => {
               </svg>
             </button>
           </div>
-          <p class="text-sm text-gray-500 mt-1">Role: {{ user.role }}</p>
+          <!-- <p v-if="user?.role" class="text-sm text-gray-500 mt-1">Role: {{ user.role }}</p> -->
           
           <!-- Follow Stats -->
           <div class="w-full mt-6">

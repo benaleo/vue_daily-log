@@ -108,18 +108,22 @@ const closeDrawer = () => {
         </div>
 
         <div v-else-if="searchResults.length > 0" class="space-y-3">
-          <div 
+          <router-link 
             v-for="user in searchResults" 
             :key="user.id"
-            class="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+            :to="{ name: 'profile', query: { id: user.id } }"
+            class="block hover:bg-gray-50 rounded-lg transition-colors"
+            @click="closeDrawer"
           >
-            <img 
-              :src="user.avatar_url || '/img.jpg'" 
-              :alt="user.name"
-              class="w-10 h-10 rounded-full object-cover mr-3"
-            >
-            <span class="text-sm font-medium text-gray-900">{{ user.name }}</span>
-          </div>
+            <div class="flex items-center p-3">
+              <img 
+                :src="user.avatar_url || '/img.jpg'" 
+                :alt="user.name"
+                class="w-10 h-10 rounded-full object-cover mr-3"
+              >
+              <span class="text-sm font-medium text-gray-900">{{ user.name }}</span>
+            </div>
+          </router-link>
           
           <div v-if="error" class="p-4 text-red-600 text-sm">
             {{ error }}
