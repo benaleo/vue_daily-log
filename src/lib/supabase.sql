@@ -1,35 +1,60 @@
--- 1) Buat fungsi trigger di schema public
-CREATE OR REPLACE FUNCTION public.sync_auth_user_to_public()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+create function sync_auth_user_to_public() returns trigger
+    security definer
+    language plpgsql
+as
+$$
 BEGIN
-  -- Hanya insert jika belum ada user dengan id yang sama
-  IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = NEW.id) THEN
-    INSERT INTO public.users (id, email, created_at, updated_at)
-    VALUES (NEW.id, NEW.email, NEW.created_at, NEW.created_at);
+  -- INSERT: hanya buat user jika belum ada
+  IF (TG_OP = 'INSERT') THEN
+    IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = NEW.id) THEN
+      INSERT INTO public.users (id, email, name, avatar_url, created_at, updated_at)
+      VALUES (
+        NEW.id,
+        NEW.email,
+        NEW.raw_user_meta_data->>'name',
+        NEW.raw_user_meta_data->>'avatar_url',
+        NEW.created_at,
+        NEW.created_at
+      );
+    END IF;
+
+    RETURN NEW;
+  END IF;
+
+  -- UPDATE: sinkronkan data ke public.users
+  IF (TG_OP = 'UPDATE') THEN
+    UPDATE public.users
+      SET email      = NEW.email,
+          name       = NEW.raw_user_meta_data->>'name',
+          avatar_url = NEW.raw_user_meta_data->>'avatar_url',
+          updated_at = NOW()
+    WHERE id = NEW.id;
+
+    RETURN NEW;
   END IF;
 
   RETURN NEW;
+
 EXCEPTION
   WHEN unique_violation THEN
-    -- Jika ada race condition dan row sudah dibuat oleh proses lain, abaikan
     RETURN NEW;
 END;
 $$;
 
--- 2) Beri hak eksekusi pada role yang diperlukan (biasanya postgres owner sudah cukup)
--- Pastikan owner fungsi bisa membaca auth.users; SECURITY DEFINER membuat fungsi berjalan dengan hak pemilik.
+alter function sync_auth_user_to_public() owner to postgres;
 
--- 3) Cabut eksekusi dari anon dan authenticated untuk keamanan
-REVOKE EXECUTE ON FUNCTION public.sync_auth_user_to_public() FROM anon;
-REVOKE EXECUTE ON FUNCTION public.sync_auth_user_to_public() FROM authenticated;
+grant execute on function sync_auth_user_to_public() to service_role;
 
--- 4) Buat trigger di auth.users untuk memanggil fungsi setelah insert
-DROP TRIGGER IF EXISTS auth_user_after_insert_sync_public ON auth.users;
 
-CREATE TRIGGER auth_user_after_insert_sync_public
-AFTER INSERT ON auth.users
-FOR EACH ROW
-EXECUTE FUNCTION public.sync_auth_user_to_public();
+----------- create trigger
+create trigger sync_auth_user_to_public_insert
+after insert on auth.users
+for each row
+execute function sync_auth_user_to_public();
+
+
+----------- update trigger
+create trigger sync_auth_user_to_public_update
+after update on auth.users
+for each row
+execute function sync_auth_user_to_public();
