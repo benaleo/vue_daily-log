@@ -216,7 +216,7 @@ export const chatService = {
       .from("chat_messages")
       .select(
         // Ensure we always return user_id for UI and keep original ids
-        "id, room_id, from_id, to_id, content, created_at"
+        "id, room_id, from_id, to_id, content, created_at, from:chat_room_users!chat_messages_from_id_fkey(user:users!chat_room_users_user_id_fkey(id))"
       )
       .eq("room_id", roomId)
       .order("created_at", { ascending: true });
@@ -228,7 +228,7 @@ export const chatService = {
     // Map from_id -> user_id for UI compatibility
     const mapped = (data || []).map((m: any) => ({
       ...m,
-      user_id: m.from_id,
+      user_id: m.from.user.id,
     })) as ChatMessage[];
 
     console.log("mapped chat", mapped);
