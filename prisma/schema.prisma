@@ -73,6 +73,7 @@ model History {
   category    HistoryCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
   image_url   String?
   type        HistoryType
+  ts_at       DateTime    @default(now())
   amount      Float       @default(0)
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
