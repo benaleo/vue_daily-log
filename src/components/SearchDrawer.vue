@@ -1,62 +1,18 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useUserSearch } from '@/composables/useUserSearch'
 
 const isOpen = defineModel<boolean>('modelValue', { required: true })
 const searchQuery = ref('')
-const isLoading = ref(false)
-const searchResults = ref<Array<{id: number, name: string, avatar: string}>>([])
-const currentPage = ref(1)
-const hasMore = ref(true)
-
-// Mock data - replace with actual API call
-const mockUsers = Array.from({ length: 20 }, (_, i) => ({
-  id: i + 1,
-  name: `User ${i + 1}`,
-  avatar: `https://i.pravatar.cc/150?img=${i + 1}`
-}))
-
-const searchUsers = async (query: string, page: number = 1) => {
-  if (!query.trim() || query.length < 3) {
-    searchResults.value = []
-    return
-  }
-
-  isLoading.value = true
-  
-  // Simulate API call with timeout
-  setTimeout(() => {
-    const filtered = mockUsers.filter(user => 
-      user.name.toLowerCase().includes(query.toLowerCase())
-    )
-    
-    const start = (page - 1) * 5
-    const end = start + 5
-    const paginatedResults = filtered.slice(0, end)
-    
-    if (page === 1) {
-      searchResults.value = paginatedResults
-    } else {
-      searchResults.value = [...searchResults.value, ...paginatedResults.slice(-5)]
-    }
-    
-    hasMore.value = end < filtered.length
-    currentPage.value = page
-    isLoading.value = false
-  }, 500)
-}
-
-const resetSearch = () => {
-  searchQuery.value = ''
-  searchResults.value = []
-  currentPage.value = 1
-  hasMore.value = true
-}
-
-const loadMore = () => {
-  if (!isLoading.value && hasMore.value) {
-    searchUsers(searchQuery.value, currentPage.value + 1)
-  }
-}
+const { 
+  searchResults, 
+  isLoading, 
+  error, 
+  hasMore, 
+  searchUsers, 
+  resetSearch: resetUserSearch, 
+  loadMore 
+} = useUserSearch()
 
 // Debounce search
 let searchTimeout: number | null = null
@@ -68,9 +24,14 @@ watch(searchQuery, (newQuery) => {
       searchUsers(newQuery, 1)
     }, 300)
   } else {
-    searchResults.value = []
+    resetUserSearch()
   }
 })
+
+const resetSearch = () => {
+  searchQuery.value = ''
+  resetUserSearch()
+}
 
 const closeDrawer = () => {
   isOpen.value = false
@@ -153,17 +114,21 @@ const closeDrawer = () => {
             class="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
           >
             <img 
-              :src="user.avatar" 
+              :src="user.avatar_url || '/img.jpg'" 
               :alt="user.name"
               class="w-10 h-10 rounded-full object-cover mr-3"
             >
             <span class="text-sm font-medium text-gray-900">{{ user.name }}</span>
           </div>
+          
+          <div v-if="error" class="p-4 text-red-600 text-sm">
+            {{ error }}
+          </div>
 
           <!-- Load More Button -->
           <div v-if="hasMore" class="flex justify-center pt-2">
             <button
-              @click="loadMore"
+              @click="() => loadMore(searchQuery)"
               :disabled="isLoading"
               class="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
             >
