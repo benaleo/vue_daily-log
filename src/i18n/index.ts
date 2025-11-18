@@ -13,7 +13,8 @@ const messages = {
       load_error_message: 'There was an error loading your conversations. Please try again.',
       no_conversations: 'No conversations',
       start_conversation: 'Start a new conversation',
-      coming_soon: 'Coming soon'
+      coming_soon: 'Coming soon',
+      type_message: 'Type your message here',
     },
     common: {
       retry: 'Try Again'
