@@ -5,6 +5,7 @@ import MainLayout from '@/layouts/MainLayout.vue'
 import { userFollowers } from '@/services/userFollowersService'
 import { useGetUserProfile } from '@/composables/useGetUserProfile'
 import { toast } from 'vue-sonner'
+import UserListPopup from '@/components/UserListPopup.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -23,6 +24,18 @@ const stats = ref({
   followers: 0,
   following: 0
 })
+
+const showPopup = ref(false)
+const popupType = ref<'followers' | 'following'>('followers')
+
+const openPopup = (type: 'followers' | 'following') => {
+  popupType.value = type
+  showPopup.value = true
+}
+
+const closePopup = () => {
+  showPopup.value = false
+}
 
 const loadUserData = async () => {
   try {
@@ -160,7 +173,11 @@ const copyToClipboard = (text: string) => {
           <div class="w-full mt-6">
             <div class="grid grid-cols-2 gap-4">
               <!-- Followers -->
-              <div class="bg-gray-50 rounded-lg p-4 text-center border border-gray-100 hover:border-blue-200 transition-colors">
+              <button 
+                @click="openPopup('followers')" 
+                class="w-full bg-gray-50 rounded-lg p-4 text-center border border-gray-100 hover:border-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                :disabled="loading"
+              >
                 <div v-if="loading" class="animate-pulse">
                   <div class="h-6 w-3/4 bg-gray-200 rounded mx-auto mb-1"></div>
                   <div class="h-4 w-1/2 bg-gray-200 rounded mx-auto"></div>
@@ -169,10 +186,14 @@ const copyToClipboard = (text: string) => {
                   <p class="text-2xl font-bold text-gray-900">{{ stats.followers.toLocaleString() }}</p>
                   <p class="text-sm text-gray-500">Followers</p>
                 </template>
-              </div>
+              </button>
               
               <!-- Following -->
-              <div class="bg-gray-50 rounded-lg p-4 text-center border border-gray-100 hover:border-blue-200 transition-colors">
+              <button 
+                @click="openPopup('following')" 
+                class="w-full bg-gray-50 rounded-lg p-4 text-center border border-gray-100 hover:border-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                :disabled="loading"
+              >
                 <div v-if="loading" class="animate-pulse">
                   <div class="h-6 w-3/4 bg-gray-200 rounded mx-auto mb-1"></div>
                   <div class="h-4 w-1/2 bg-gray-200 rounded mx-auto"></div>
@@ -181,11 +202,20 @@ const copyToClipboard = (text: string) => {
                   <p class="text-2xl font-bold text-gray-900">{{ stats.following.toLocaleString() }}</p>
                   <p class="text-sm text-gray-500">Following</p>
                 </template>
-              </div>
+              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- User List Popup -->
+    <UserListPopup
+      v-if="user"
+      :is-open="showPopup"
+      :user-id="user.id"
+      :type="popupType"
+      @close="closePopup"
+    />
   </MainLayout>
 </template>
