@@ -15,6 +15,11 @@ const messages = {
       start_conversation: 'Start a new conversation',
       coming_soon: 'Coming soon',
       type_message: 'Type your message here',
+      menu: {
+        view_profile: 'Detail',
+        clear_chat: 'Clear Chat',
+        end_chat: 'Delete'
+      }
     },
     common: {
       retry: 'Try Again'

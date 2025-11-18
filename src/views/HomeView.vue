@@ -44,9 +44,9 @@ const monthStats = computed(() => {
 })
 
 onMounted(async () => {
-  const { session } = await authService.getSession()
-  if (session?.user?.user_metadata?.name) {
-    userName.value = session.user.user_metadata.name
+  const { sessionUser } = await authService.getSession()
+  if (sessionUser?.name) {
+    userName.value = sessionUser.name
   }
   
   await Promise.all([

@@ -4,6 +4,16 @@ import { supabase } from '@/lib/supabase';
 // Re-export the Supabase clients
 export { supabase };
 
+export type SessionUser = {
+  token: string
+  session: any
+  user_id: string
+  name: string
+  email: string
+  avatar_url: string
+  role: string
+}
+
 export const authService = {
   // Update the signUp function in authService
 async signUp(email: string, password: string, name: string) {
@@ -58,17 +68,22 @@ async signUp(email: string, password: string, name: string) {
 
     // add session role name from public.users
     if (session?.user) {
-      const { data, error } = await this.getRole(session.user.id)
-      if (error) throw error
-      session.user.role = data?.role || 'UNKNOWN'
+      session.user.role = 'ADMIN'
     }
-    return { session, error }
+
+    const sessionUser: SessionUser = {
+      token: session?.access_token || '',
+      session: session,
+      user_id: session?.user?.id || '',
+      name: session?.user?.user_metadata?.name || '',
+      email: session?.user?.email || '',
+      avatar_url: session?.user?.user_metadata?.avatar_url || '',
+      role: session?.user?.role || 'USER'
+    }
+
+    return { sessionUser, error }
   },
 
-  async getRole(id: string) {
-    const { data, error } = await supabase.from('users').select('role').eq('id', id).single()
-    return { data, error }
-  },
 
   async updateProfile(name: string, avatarUrl?: string) {
     const { data, error } = await supabase.auth.updateUser({

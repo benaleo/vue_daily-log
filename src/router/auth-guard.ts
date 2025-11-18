@@ -6,11 +6,11 @@ export async function authGuard(
   from: RouteLocationNormalized,
   next: NavigationGuardNext
 ) {
-  const { session } = await authService.getSession()
+  const { sessionUser } = await authService.getSession()
 
   // Jika route memerlukan auth
   if (to.meta.requiresAuth) {
-    if (!session) {
+    if (!sessionUser) {
       // Tidak ada session, redirect ke login
       next('/login')
     } else {
@@ -20,7 +20,7 @@ export async function authGuard(
   }
   // Jika route untuk guest (login/register)
   else if (to.meta.requiresGuest) {
-    if (session) {
+    if (sessionUser) {
       // Sudah login, redirect ke home
       next('/home')
     } else {

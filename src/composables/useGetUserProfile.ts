@@ -22,37 +22,37 @@ export function useGetUserProfile() {
       loading.value = true
       error.value = null
       
-      const { session, error: authError } = await authService.getSession()
+      const { sessionUser, error: authError } = await authService.getSession()
       
-      if (authError || !session?.user) {
+      if (authError || !sessionUser) {
         throw new Error('No authenticated user')
       }
       
-      const { user: authUser } = session
+      const { user_id, name, email, avatar_url, role } = sessionUser
       
       // First try to get user from profiles table
       const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('id, email, name, avatar_url, role')
-        .eq('id', authUser.id)
+        .eq('id', user_id)
         .single()
       
       if (profileError || !profileData) {
         // If no profile found, use auth data
         user.value = {
-          id: authUser.id,
-          name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-          email: authUser.email || '',
-          avatar_url: authUser.user_metadata?.avatar_url || '/img.jpg',
-          role: authUser.role || 'USER'
+          id: user_id,
+          name: name || 'unknown',
+          email: email || '',
+          avatar_url: avatar_url || '/img.jpg',
+          role: role || 'USER'
         }
       } else {
         // Use profile data from database
         user.value = {
           id: profileData.id,
-          name: profileData.name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-          email: profileData.email || authUser.email || '',
-          avatar_url: profileData.avatar_url || authUser.user_metadata?.avatar_url || '/img.jpg',
+          name: profileData.name || 'unknown',
+          email: profileData.email || '',
+          avatar_url: profileData.avatar_url || '/img.jpg',
           role: profileData.role || 'USER'
         }
       }
@@ -73,7 +73,8 @@ export function useGetUserProfile() {
     try {
       loading.value = true
       error.value = null
-      const currentUserId = await supabase.auth.getSession().then((session) => session.data.session?.user.id)
+      const { sessionUser } = await authService.getSession()
+      const currentUserId = sessionUser?.user_id
       
       const { data: profileData, error: profileError } = await supabase
         .from('users')
@@ -115,7 +116,8 @@ export function useGetUserProfile() {
     
     try {
       loading.value = true
-      const currentUserId = await supabase.auth.getSession().then((session) => session.data.session?.user.id)
+      const { sessionUser } = await authService.getSession()
+      const currentUserId = sessionUser?.user_id
       
       if (user.value.isFollowing) {
         // Unfollow

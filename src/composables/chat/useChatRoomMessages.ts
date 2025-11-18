@@ -1,15 +1,16 @@
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, type Ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { chatService, type ChatRoom, type ChatMessage, type ChatUser } from '@/services/chatService'
 import { supabase } from '@/services/supabase'
 import { useUser } from '@/composables/useUser'
 
-export function useChatRoom() {
+export function useChatRoom(userIdRef?: Ref<string | undefined>) {
   const { t } = useI18n()
   const router = useRouter()
   const route = useRoute()
-  const { user } = useUser()
+  const { user: userFromHook } = useUser()
+  const userId = computed(() => userIdRef?.value ?? userFromHook.value?.id)
 
   const room = ref<ChatRoom | null>(null)
   const messages = ref<ChatMessage[]>([])
@@ -17,14 +18,16 @@ export function useChatRoom() {
   const error = ref<Error | null>(null)
   const newMessage = ref('')
   const otherUser = computed<ChatUser | null>(() => {
-    if (!room.value?.users || !user.value) return null
-    return room.value.users.find(u => u.id !== user.value?.id) || null
+    if (!room.value?.users || !userId.value) return null
+    return room.value.users.find(u => u.id !== userId.value) || null
   })
 
   const roomId = computed(() => route.params.roomId as string)
+  const fromId = computed(() => userId.value as string)
+  const isPrivate = computed(() => (route.query.type as string) === 'PRIVATE')
 
   const fetchRoom = async () => {
-    if (!user.value?.id) {
+    if (!userId.value) {
       loading.value = false;
       return;
     }
@@ -32,9 +35,9 @@ export function useChatRoom() {
     try {
       loading.value = true
       error.value = null
+      const roomData = await chatService.getChatRoomByRoomId(roomId.value)
       
-      const roomData = await chatService.getChatRoom(roomId.value, user.value.id)
-      
+      console.log('roomData', roomData)
       if (!roomData) {
         console.log('No room found, redirecting to chat list')
         router.push('/chat')
@@ -42,6 +45,8 @@ export function useChatRoom() {
       }
       
       room.value = roomData
+
+      console.log('room', room.value)
       await fetchMessages()
     } catch (err) {
       console.error('Error in fetchRoom:', err)
@@ -55,15 +60,21 @@ export function useChatRoom() {
       loading.value = false;
       return;
     }
+    // Only fetch for private rooms if requested
+    if (!isPrivate.value) return
     
     try {
-      const fetchedMessages = await chatService.getChatMessages(roomId.value);
+      const room = await chatService.getChatRoomByRoomId(roomId.value)
+      console.log('fetch message roomId', room?.id)
+      if(room) {
+        const fetchedMessages = await chatService.getChatMessages(room?.id);
       messages.value = fetchedMessages || [];
       
       if (fetchedMessages) {
         await markMessagesAsRead();
         await nextTick();
         scrollToBottom();
+      }
       }
     } catch (err) {
       console.error('Error in fetchMessages:', err);
@@ -73,26 +84,45 @@ export function useChatRoom() {
     }
   }
 
-  const sendMessage = async () => {
-    if (!newMessage.value.trim() || !user.value?.id || !roomId.value) return
+  const sendMessage = async (contentOverride?: string) => {
+    const content = contentOverride || newMessage.value.trim()
+    
+    if (!content) {
+      console.log('No message content')
+      return
+    }
+    if (!fromId.value) {
+      console.log('No user ID')
+      return
+    }
+    if (!roomId.value) {
+      console.log('No room ID')
+      return
+    }
 
-    const content = newMessage.value.trim()
-    newMessage.value = ''
+    if (!contentOverride) {
+      newMessage.value = ''
+    }
 
     try {
-      await chatService.sendMessage(roomId.value, user.value.id, content)
+      console.log('Calling chatService.sendMessage')
+      await chatService.sendMessagePrivate(roomId.value, fromId.value, content, "PRIVATE")
+      console.log('Message sent successfully, fetching messages...')
       await fetchMessages()
+      console.log('Messages fetched after sending')
     } catch (err) {
-      console.error('Error sending message:', err)
-      // Optionally show error to user
+      console.error('Error in sendMessage:', err)
+      error.value = err as Error
+      // Re-add the message to the input if sending failed
+      newMessage.value = content
     }
   }
 
   const markMessagesAsRead = async () => {
-    if (!user.value?.id || !roomId.value) return
+    if (!fromId.value || !roomId.value) return
     
     try {
-      await chatService.markMessagesAsRead(roomId.value, user.value.id)
+      await chatService.markMessagesAsRead(roomId.value, fromId.value)
     } catch (err) {
       console.error('Error marking messages as read:', err)
     }
@@ -110,8 +140,18 @@ export function useChatRoom() {
   // Set up real-time subscription
   let subscription: any = null
   
+  const teardownRealtime = () => {
+    if (subscription) {
+      try { supabase.removeChannel(subscription) } catch {}
+      subscription = null
+    }
+  }
+
   const setupRealtime = () => {
+    teardownRealtime()
     if (!roomId.value) return
+    // Subscribe only for private chats if requested
+    if (!isPrivate.value) return
     
     subscription = supabase
       .channel(`room_${roomId.value}`)
@@ -123,7 +163,7 @@ export function useChatRoom() {
           table: 'chat_messages',
           filter: `room_id=eq.${roomId.value}`
         },
-        (payload) => {
+        () => {
           fetchMessages()
         }
       )
@@ -131,14 +171,15 @@ export function useChatRoom() {
   }
 
   onMounted(async () => {
-    await fetchRoom()
-    setupRealtime()
+    // If userId already available, proceed; otherwise wait for watcher
+    if (userId.value) {
+      await fetchRoom()
+      setupRealtime()
+    }
   })
 
   onUnmounted(() => {
-    if (subscription) {
-      supabase.removeChannel(subscription)
-    }
+    teardownRealtime()
   })
 
   // Function to manually trigger room fetch
@@ -148,12 +189,21 @@ export function useChatRoom() {
     }
   };
 
-  // Initial fetch when the composable is used
-  onMounted(() => {
-    if (roomId.value) {
-      fetchRoom();
+  // React when userId becomes ready
+  watch(userId, async (newId) => {
+    if (newId && roomId.value) {
+      await fetchRoom()
+      setupRealtime()
     }
-  });
+  })
+
+  // React to room changes or query type changes
+  watch([() => route.params.roomId as string | undefined, () => route.query.type as string | undefined], async () => {
+    if (roomId.value && userId.value) {
+      await fetchRoom()
+      setupRealtime()
+    }
+  })
 
   // Watch for route changes to handle page reloads
   watch(() => route.params.roomId as string | undefined, (newRoomId: string | undefined) => {

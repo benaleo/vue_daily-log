@@ -1,18 +1,26 @@
 <script lang="ts" setup>
-import { ref } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useChatRoom } from "@/composables/chat/useChatRoomMessages";
-import useUser from "@/composables/useUser";
+import { useUser } from "@/composables/useUser";
 import MainLayout from "@/layouts/MainLayout.vue";
 import { Send } from "lucide-vue-next";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
-const { user } = useUser();
-
+const { user, getCurrentUser } = useUser();
 const showMenu = ref(false);
+
+// Get current user when component mounts
+onMounted(async () => {
+  if (!user.value) {
+    await getCurrentUser()
+  }
+})
+
+// Log user for debugging
 const {
   room,
   messages,
@@ -22,20 +30,41 @@ const {
   sendMessage,
   scrollToBottom,
   error,
-} = useChatRoom();
+} = useChatRoom(computed(() => user.value?.id));
 
 const handleSendMessage = async () => {
-  if (!newMessage.value.trim()) return;
-  await sendMessage();
-  scrollToBottom();
-};
-
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    handleSendMessage();
+  const message = newMessage.value.trim()
+  if (!message) return
+  
+  // Ensure user is logged in
+  if (!user.value) {
+    const currentUser = await getCurrentUser()
+    if (!currentUser) {
+      console.error('User not authenticated')
+      // Redirect to login or show error
+      router.push('/login')
+      return
+    }
+  }
+  
+  try {
+    console.log('Sending message with user ID:', user.value?.id)
+    await sendMessage()
+    newMessage.value = ''
+    // Reset textarea height
+    const textarea = document.querySelector('textarea')
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = '44px'
+    }
+    await nextTick()
+    scrollToBottom()
+  } catch (error) {
+    console.error('Failed to send message:', error)
   }
 };
+
+// Removed handleKeyDown as we're now using direct event handlers in the template
 
 const getInitials = (name: string) => {
   return name
@@ -50,6 +79,27 @@ const formatTime = (dateString: string) => {
   if (!dateString) return "";
   const date = new Date(dateString);
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+const handleTextareaInput = (event: Event) => {
+  const target = event.target as HTMLTextAreaElement;
+  target.style.height = 'auto';
+  target.style.height = target.scrollHeight + 'px';
+};
+
+const handleTextareaKeydown = (event: KeyboardEvent) => {
+  const target = event.target as HTMLTextAreaElement
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault()
+    handleSendMessage()
+  } else if (event.key === 'Enter' && event.shiftKey) {
+    // Allow Shift+Enter for new line
+    // The default behavior will add a new line
+  } else {
+    // Auto-resize for other inputs
+    target.style.height = 'auto'
+    target.style.height = target.scrollHeight + 'px'
+  }
 };
 </script>
 
@@ -220,18 +270,20 @@ const formatTime = (dateString: string) => {
 
           <div class="flex-1 relative">
             <textarea
+              ref="messageInput"
               v-model="newMessage"
-              @keydown="handleKeyDown"
+              @keydown="handleTextareaKeydown"
+              @input="handleTextareaInput"
+              @keyup.enter.exact.prevent="handleSendMessage"
               :placeholder="$t('chat.type_message')"
-              class="w-full px-4 py-2 pr-10 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              class="w-full px-4 py-2 pr-10 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-hidden"
               rows="1"
               style="min-height: 44px; max-height: 120px"
             ></textarea>
 
             <button
-              type="button"
-              @click="handleSendMessage"
-              class="absolute right-4 bottom-1/2 translate-y-1/2 p-1 text-blue-500 hover:text-blue-600 dark:hover:text-blue-400"
+              type="submit"
+              class="absolute right-4 bottom-1/2 translate-y-1/2 p-1 text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
               :disabled="!newMessage.trim()"
             >
               <Send />

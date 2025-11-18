@@ -52,13 +52,13 @@ const errorMessage = ref('')
 const successMessage = ref('')
 
 const loadUserData = async () => {
-  const { session } = await authService.getSession()
-  if (session?.user) {
+  const { sessionUser } = await authService.getSession()
+  if (sessionUser) {
     user.value = {
-      name: session.user.user_metadata?.name || 'User',
-      email: session.user.email || '',
-      avatar: session.user.user_metadata?.avatar_url || '/img.jpg',
-      role: session.user.role || 'UNKNOWN'
+      name: sessionUser.name || 'User',
+      email: sessionUser.email || '',
+      avatar: sessionUser.avatar_url || '/img.jpg',
+      role: sessionUser.role || 'UNKNOWN'
     }
   }
 }
@@ -93,8 +93,8 @@ const saveProfile = async () => {
     let finalAvatarUrl = editAvatar.value
     
     if (avatarFile.value) {
-      const { session } = await authService.getSession()
-      const email = session?.user?.email || 'anonymous'
+      const { sessionUser } = await authService.getSession()
+      const email = sessionUser?.email || 'anonymous'
       
       const result = await uploadImage(avatarFile.value, email, 'avatar')
       finalAvatarUrl = result.url
