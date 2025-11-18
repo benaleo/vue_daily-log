@@ -1,172 +1,35 @@
-
--- BANNERS
-CREATE TABLE IF NOT EXISTS public.banners (
-  id BIGSERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  url TEXT NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- Optional: trigger to maintain updated_at on update
-CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER AS $$
+-- 1) Buat fungsi trigger di schema public
+CREATE OR REPLACE FUNCTION public.sync_auth_user_to_public()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
 BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS set_updated_at_on_banners ON public.banners;
-CREATE TRIGGER set_updated_at_on_banners
-BEFORE UPDATE ON public.banners
-FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- Optional index to speed up queries that exclude soft-deleted rows
-CREATE INDEX IF NOT EXISTS idx_banners_not_deleted ON public.banners (id) WHERE deleted_at IS NULL;
-
-
------------------------------------- ## -----------------------------------------
-
--- HISTORY_CATEGORY
-CREATE TABLE IF NOT EXISTS public.history_categories (
-  id BIGSERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
-
--- Fungsi trigger untuk mengatur updated_at otomatis saat UPDATE
-CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Pasang trigger khusus untuk tabel history_categories
-DROP TRIGGER IF EXISTS set_updated_at_on_history_categories ON public.history_categories;
-CREATE TRIGGER set_updated_at_on_history_categories
-BEFORE UPDATE ON public.history_categories
-FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- Indeks opsional untuk mempercepat query yang hanya mengambil record non-deleted
-CREATE INDEX IF NOT EXISTS idx_history_categories_not_deleted
-  ON public.history_categories (id)
-  WHERE deleted_at IS NULL;
-
-  -- 5. history_categories: tambahkan kolom jika belum ada
-ALTER TABLE public.history_categories
-  ADD COLUMN IF NOT EXISTS user_id uuid;
-
--- 6. Jika kolom ada tapi bukan uuid, ubah tipenya menjadi uuid
-ALTER TABLE public.history_categories
-  ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
-
--- 7. Hapus constraint FK lama jika ada
-ALTER TABLE public.history_categories
-  DROP CONSTRAINT IF EXISTS history_categories_user_id_fkey;
-
--- 8. Tambahkan constraint FK baru ke auth.users(id)
-ALTER TABLE public.history_categories
-  ADD CONSTRAINT history_categories_user_id_fkey
-  FOREIGN KEY (user_id)
-  REFERENCES auth.users (id)
-  ON DELETE SET NULL
-  ON UPDATE CASCADE;
-
------------------------------------- ## -----------------------------------------
-
--- HISTORIES
--- 1) Buat tipe enum untuk kolom type
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'history_type') THEN
-    CREATE TYPE public.history_type AS ENUM ('INCOME', 'SPEND');
+  -- Hanya insert jika belum ada user dengan id yang sama
+  IF NOT EXISTS (SELECT 1 FROM public.users WHERE id = NEW.id) THEN
+    INSERT INTO public.users (id, email, created_at, updated_at)
+    VALUES (NEW.id, NEW.email, NEW.created_at, NEW.created_at);
   END IF;
-END
+
+  RETURN NEW;
+EXCEPTION
+  WHEN unique_violation THEN
+    -- Jika ada race condition dan row sudah dibuat oleh proses lain, abaikan
+    RETURN NEW;
+END;
 $$;
 
--- 2) Tabel histories
-CREATE TABLE IF NOT EXISTS public.histories (
-  id BIGSERIAL PRIMARY KEY,
-  name TEXT NOT NULL,
-  category_id BIGINT NOT NULL REFERENCES public.history_categories(id) ON DELETE RESTRICT,
-  image_url TEXT,
-  type public.history_type NOT NULL,
-  amount DOUBLE PRECISION NOT NULL DEFAULT 0,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  deleted_at timestamptz
-);
+-- 2) Beri hak eksekusi pada role yang diperlukan (biasanya postgres owner sudah cukup)
+-- Pastikan owner fungsi bisa membaca auth.users; SECURITY DEFINER membuat fungsi berjalan dengan hak pemilik.
 
--- 3) Pastikan fungsi set_updated_at ada (diperlukan hanya sekali; sudah disertakan sebelumnya but OK idempotent)
-CREATE OR REPLACE FUNCTION public.set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- 3) Cabut eksekusi dari anon dan authenticated untuk keamanan
+REVOKE EXECUTE ON FUNCTION public.sync_auth_user_to_public() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.sync_auth_user_to_public() FROM authenticated;
 
--- 4) Pasang trigger untuk histories
-DROP TRIGGER IF EXISTS set_updated_at_on_histories ON public.histories;
-CREATE TRIGGER set_updated_at_on_histories
-BEFORE UPDATE ON public.histories
+-- 4) Buat trigger di auth.users untuk memanggil fungsi setelah insert
+DROP TRIGGER IF EXISTS auth_user_after_insert_sync_public ON auth.users;
+
+CREATE TRIGGER auth_user_after_insert_sync_public
+AFTER INSERT ON auth.users
 FOR EACH ROW
-EXECUTE FUNCTION public.set_updated_at();
-
--- 5) Indeks opsional untuk mempercepat kueri yang mengabaikan soft-deleted
-CREATE INDEX IF NOT EXISTS idx_histories_not_deleted ON public.histories (category_id) WHERE deleted_at IS NULL;
-
--- 6) Indeks untuk pencarian berdasarkan tipe/amount (opsional)
-CREATE INDEX IF NOT EXISTS idx_histories_type ON public.histories (type);
-CREATE INDEX IF NOT EXISTS idx_histories_amount ON public.histories (amount);
-
--- 1) Tambah kolom user_id nullable (jika belum ada)
-ALTER TABLE public.histories
-ADD COLUMN IF NOT EXISTS user_id uuid;
-
--- 2) Buat foreign key yang merefer ke auth.users(id)
-ALTER TABLE public.histories
-ADD CONSTRAINT histories_user_id_fkey
-FOREIGN KEY (user_id)
-REFERENCES auth.users (id)
-ON DELETE SET NULL
-ON UPDATE CASCADE;
-
-
------------------------------------- ## -----------------------------------------
-
--- Create table user_followers in public schema (adjust schema if needed)
-CREATE TABLE IF NOT EXISTS public.user_followers (
-  from_id uuid NOT NULL,
-  with_id uuid NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (from_id, with_id)
-);
-
--- Add foreign key constraints referencing auth.users(id)
--- If constraint names already exist, these statements will fail; drop existing constraints first if needed.
-
-ALTER TABLE public.user_followers
-  ADD CONSTRAINT user_followers_from_id_fkey
-  FOREIGN KEY (from_id)
-  REFERENCES auth.users (id)
-  ON DELETE CASCADE
-  ON UPDATE CASCADE;
-
-ALTER TABLE public.user_followers
-  ADD CONSTRAINT user_followers_with_id_fkey
-  FOREIGN KEY (with_id)
-  REFERENCES auth.users (id)
-  ON DELETE CASCADE
-  ON UPDATE CASCADE;
-
--- Optional: index created_at for querying recent follows
-CREATE INDEX IF NOT EXISTS idx_user_followers_created_at ON public.user_followers (created_at DESC);
+EXECUTE FUNCTION public.sync_auth_user_to_public();
