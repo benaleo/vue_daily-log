@@ -19,6 +19,7 @@
     "@tailwindcss/vite": "^4.1.16",
     "date-fns": "^4.1.0",
     "lucide-vue": "^0.517.0",
+    "lucide-vue-next": "^0.554.0",
     "tailwindcss": "^4.1.16",
     "vue": "^3.5.22",
     "vue-i18n": "^9.14.5",
