@@ -9,6 +9,7 @@ export interface History {
   image_url: string | null
   type: HistoryType
   amount: number
+  ts_at: string
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -24,6 +25,7 @@ export interface CreateHistoryDto {
   image_url?: string | null
   type: HistoryType
   amount: number
+  ts_at: string
 }
 
 export interface UpdateHistoryDto {
@@ -32,6 +34,7 @@ export interface UpdateHistoryDto {
   image_url?: string | null
   type?: HistoryType
   amount?: number
+  ts_at?: string
 }
 
 export interface HistoryFilters {
@@ -68,14 +71,14 @@ export const historyService = {
     }
 
     if (filters?.date_start) {
-      query = query.gte('created_at', filters.date_start)
+      query = query.gte('ts_at', filters.date_start)
     }
 
     if (filters?.date_end) {
-      query = query.lte('created_at', filters.date_end)
+      query = query.lte('ts_at', filters.date_end)
     }
 
-    query = query.order('created_at', { ascending: false })
+    query = query.order('ts_at', { ascending: false })
 
     const { data, error } = await query
 
@@ -111,7 +114,7 @@ export const historyService = {
     const user = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('histories')
-      .insert({ ...history, user_id: user.data.user?.id })
+      .insert({ ...history, user_id: user.data.user?.id, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .select(`
         *,
         category:history_categories(id, name)
@@ -125,7 +128,7 @@ export const historyService = {
     const user = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('histories')
-      .update(history)
+      .update({ ...history, updated_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', user.data.user?.id || '')
       .select(`

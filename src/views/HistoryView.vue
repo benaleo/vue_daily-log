@@ -186,7 +186,7 @@ const closeImage = () => {
             <div class="flex-1 min-w-0">
               <h3 class="font-semibold text-gray-900 truncate">{{ item.name }}</h3>
               <p class="text-sm text-gray-600">{{ getCategoryName(item) }}</p>
-              <p class="text-xs text-gray-500 mt-1">{{ formatDate(item.created_at) }}</p>
+              <p class="text-xs text-gray-500 mt-1">{{ formatDate(item.ts_at) }}</p>
             </div>
             <div class="text-right flex-shrink-0 pr-8">
               <p 
