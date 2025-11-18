@@ -1,6 +1,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { chatService, type ChatRoom } from '@/services/chatService'
 import useUser from '../useUser'
+import { authService } from '@/services/supabase'
 
 export function useChatRooms() {
   const { user } = useUser()
@@ -11,7 +12,8 @@ export function useChatRooms() {
   let searchTimeout: number
 
   const fetchRooms = async () => {
-    if (!user.value?.id) {
+    const {sessionUser} = await authService.getSession()
+    if (!sessionUser) {
       loading.value = false
       return
     }
@@ -19,8 +21,9 @@ export function useChatRooms() {
     try {
       error.value = null
       loading.value = true
-      const result = await chatService.getChatRooms(user.value.id, searchQuery.value)
-      rooms.value = result || []
+      const result = await chatService.getChatRooms(sessionUser.user_id, searchQuery.value)
+      // Only include rooms with non-empty message history
+      rooms.value = (result || []).filter(r => !!(r.last_message && r.last_message.trim()) || !!r.last_message_at)
     } catch (err) {
       console.error('Error fetching chat rooms:', err)
       error.value = err instanceof Error ? err : new Error('Failed to fetch chat rooms')

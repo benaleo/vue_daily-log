@@ -20,7 +20,6 @@ export function useUser() {
     try {
       isLoading.value = true
       const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-      
       if (authError) throw authError
       if (!authUser) return null
 

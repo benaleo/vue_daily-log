@@ -6,13 +6,22 @@ import { useChatRooms } from '@/composables/chat/useChatRooms'
 import { toast } from 'vue-sonner'
 import useUser from '@/composables/useUser'
 import MainLayout from '@/layouts/MainLayout.vue'
-import { supabase } from '@/services/supabase'
+import { authService, supabase } from '@/services/supabase'
+import type { SessionUser } from '@/services/supabase'
 
 // Initialize composables inside setup
 const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
-const { user } = useUser()
+const sessionUser = ref<SessionUser>({
+  token: '',
+  session: null,
+  user_id: '',
+  name: '',
+  email: '',
+  avatar_url: '',
+  role: 'USER',
+})
 
 const { 
   rooms, 
@@ -23,12 +32,19 @@ const {
   refresh: refreshRooms 
 } = useChatRooms()
 
+// Initial fetch on page load
+onMounted(async () => {
+  const { sessionUser: s } = await authService.getSession()
+  sessionUser.value = s
+  refreshRooms()
+})
+
 // Set up real-time subscription for room updates
 let subscription: any = null
 let userTopic: any = null
 
 // Watch for user changes to set up subscription
-watch(() => user.value?.id, (newUserId) => {
+watch(() => sessionUser.value.user_id, (newUserId) => {
   // Clean up existing subscription
   if (subscription) {
     supabase.removeChannel(subscription)
@@ -56,7 +72,7 @@ watch(() => user.value?.id, (newUserId) => {
 
 // Set up real-time updates
 const setupRealtimeUpdates = () => {
-  if (!user.value?.id) return
+  if (!sessionUser.value.user_id) return
 
   subscription = supabase
     .channel('rooms_changes')
@@ -66,7 +82,7 @@ const setupRealtimeUpdates = () => {
         event: '*',
         schema: 'public',
         table: 'chat_rooms',
-        filter: `chat_room_users.user_id=eq.${user.value.id}`
+        filter: `chat_room_users.user_id=eq.${sessionUser.value.user_id}`
       },
       () => {
         refreshRooms()
@@ -143,8 +159,8 @@ const formatTime = (dateString: string) => {
 }
 
 const getOtherUser = (room: any) => {
-  if (!room.users || !user.value) return null
-  return room.users.find((u: any) => u.id !== user.value?.id) || null
+  if (!room.users) return null
+  return room.users.find((u: any) => u.id !== sessionUser.value.user_id) || null
 }
 
 const getRoomDisplayName = (room: any) => {

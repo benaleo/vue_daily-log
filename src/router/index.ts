@@ -51,13 +51,13 @@ const router = createRouter({
         {
           path: '',
           name: 'chat',
-          component: () => ChatRoomView,
+          component: ChatRoomView,
           meta: { requiresAuth: true, title: 'Chat' },
         },
         {
           path: ':fromId/:roomId',
           name: 'chat-room',
-          component: () => ChatMessagesView,
+          component: ChatMessagesView,
           meta: { requiresAuth: true, title: 'Chat Room' },
           props: true
         }
@@ -69,3 +69,4 @@ const router = createRouter({
 router.beforeEach(authGuard)
 
 export default router
+
