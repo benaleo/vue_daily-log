@@ -30,7 +30,7 @@ const showSearchDrawer = ref(false)
     <!-- Search Button -->
     <button 
       @click="showSearchDrawer = true"
-      class="absolute right-12 text-gray-600 hover:text-gray-900"
+      class="absolute right-12 text-gray-600 hover:text-gray-900 mr-2"
       aria-label="Search"
     >
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,13 +1,13 @@
+import { authService, supabase } from '@/services/supabase'
 import { ref } from 'vue'
-import { supabase } from '@/services/supabase'
-import { authService } from '@/services/supabase'
 
 export interface UserProfile {
   id: string
-  name: string
   email: string
-  avatar_url: string | null
-  role: string
+  name: string
+  avatar_url?: string
+  role?: string
+  isFollowing?: boolean
 }
 
 export function useGetUserProfile() {
@@ -15,6 +15,7 @@ export function useGetUserProfile() {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const isCurrentUser = ref(false)
+  const isFollowing = ref(false)
 
   const fetchCurrentUser = async () => {
     try {
@@ -68,38 +69,81 @@ export function useGetUserProfile() {
     }
   }
 
-  const fetchUserProfile = async (userId?: string) => {
+  const fetchUserProfile = async (userId: string) => {
     try {
       loading.value = true
       error.value = null
-      isCurrentUser.value = false
-
-      // If no userId provided, fetch current user
-      if (!userId) {
-        return await fetchCurrentUser()
-      }
-
-      // Fetch specific user by ID
-      const { data, error: fetchError } = await supabase
+      const currentUserId = await supabase.auth.getSession().then((session) => session.data.session?.user.id)
+      
+      const { data: profileData, error: profileError } = await supabase
         .from('users')
         .select('id, email, name, avatar_url, role')
         .eq('id', userId)
         .single()
-
-      if (fetchError) throw fetchError
       
-      user.value = {
-        id: data.id,
-        name: data.name || 'User',
-        email: data.email || '',
-        avatar_url: data.avatar_url || '/img.jpg',
-        role: data.role || 'USER'
+      if (profileError) throw profileError
+      
+      user.value = profileData
+      isCurrentUser.value = currentUserId === userId
+      
+      // Check if current user is following this profile
+      if (currentUserId && currentUserId !== userId) {
+        const { data: followData, error: followError } = await supabase
+          .from('user_followers')
+          .select('*')
+          .eq('from_id', currentUserId)
+          .eq('with_id', userId)
+          .maybeSingle()
+
+        user.value = { 
+          ...user.value, 
+          isFollowing: !followError && followData !== null 
+        }
       }
       
       return user.value
     } catch (err) {
-      console.error('Error fetching user profile:', err)
-      error.value = 'Failed to load user profile'
+      error.value = err instanceof Error ? err.message : 'Failed to fetch user profile'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const toggleFollow = async () => {
+    if (!user.value) return
+    
+    try {
+      loading.value = true
+      const currentUserId = await supabase.auth.getSession().then((session) => session.data.session?.user.id)
+      
+      if (user.value.isFollowing) {
+        // Unfollow
+        const { error: unfollowError } = await supabase
+          .from('user_followers')
+          .delete()
+          .eq('from_id', currentUserId)
+          .eq('with_id', user.value.id)
+          
+        if (!unfollowError) {
+          user.value = { ...user.value, isFollowing: false }
+          return { success: true, action: 'unfollow' }
+        }
+      } else {
+        // Follow
+        const { error: followError } = await supabase
+          .from('user_followers')
+          .insert([
+            { from_id: currentUserId, with_id: user.value.id }
+          ])
+          
+        if (!followError) {
+          user.value = { ...user.value, isFollowing: true }
+          return { success: true, action: 'follow' }
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling follow:', err)
       throw err
     } finally {
       loading.value = false
@@ -112,6 +156,7 @@ export function useGetUserProfile() {
     error,
     isCurrentUser,
     fetchUserProfile,
-    fetchCurrentUser
+    fetchCurrentUser,
+    toggleFollow
   }
 }
