@@ -1,50 +1,28 @@
-import { createClient } from '@supabase/supabase-js'
+// Import the Supabase client from our implementation
+import { supabase } from '@/lib/supabase';
 
-// Environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || ''
-
-// Client-side Supabase client (for browser usage)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-})
-
-// Server-side Supabase admin client (for server-side operations)
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-})
+// Re-export the Supabase clients
+export { supabase };
 
 export const authService = {
   // Update the signUp function in authService
 async signUp(email: string, password: string, name: string) {
   try {
-    // Use the admin client for user creation
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    // Use the standard signUp method
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      email_confirm: true, // Skip email confirmation in development
-      user_metadata: { name }
+      options: {
+        data: {
+          name: name,
+          email_confirm: true // Skip email confirmation in development
+        }
+      }
     });
 
     if (error) throw error;
 
-    // Sign in the user with the regular client
-    const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (signInError) throw signInError;
-
-    return { data: sessionData, error: null };
+    return { data, error: null };
   } catch (error) {
     console.error('Signup error:', error);
     return {
