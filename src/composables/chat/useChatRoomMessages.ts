@@ -1,4 +1,4 @@
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { chatService, type ChatRoom, type ChatMessage, type ChatUser } from '@/services/chatService'
@@ -24,33 +24,52 @@ export function useChatRoom() {
   const roomId = computed(() => route.params.roomId as string)
 
   const fetchRoom = async () => {
-    if (!user.value?.id) return
+    if (!user.value?.id) {
+      loading.value = false;
+      return;
+    }
     
     try {
       loading.value = true
-      room.value = await chatService.getChatRoom(roomId.value, user.value.id)
-      if (!room.value) {
+      error.value = null
+      
+      const roomData = await chatService.getChatRoom(roomId.value, user.value.id)
+      
+      if (!roomData) {
+        console.log('No room found, redirecting to chat list')
         router.push('/chat')
         return
       }
+      
+      room.value = roomData
       await fetchMessages()
     } catch (err) {
+      console.error('Error in fetchRoom:', err)
       error.value = err as Error
-      console.error('Error fetching chat room:', err)
-    } finally {
       loading.value = false
     }
   }
 
   const fetchMessages = async () => {
-    if (!roomId.value) return
+    if (!roomId.value) {
+      loading.value = false;
+      return;
+    }
     
     try {
-      messages.value = await chatService.getChatMessages(roomId.value)
-      await markMessagesAsRead()
-      scrollToBottom()
+      const fetchedMessages = await chatService.getChatMessages(roomId.value);
+      messages.value = fetchedMessages || [];
+      
+      if (fetchedMessages) {
+        await markMessagesAsRead();
+        await nextTick();
+        scrollToBottom();
+      }
     } catch (err) {
-      console.error('Error fetching messages:', err)
+      console.error('Error in fetchMessages:', err);
+      error.value = err as Error;
+    } finally {
+      loading.value = false;
     }
   }
 
@@ -122,6 +141,27 @@ export function useChatRoom() {
     }
   })
 
+  // Function to manually trigger room fetch
+  const fetchRoomMessages = async () => {
+    if (roomId.value) {
+      await fetchRoom();
+    }
+  };
+
+  // Initial fetch when the composable is used
+  onMounted(() => {
+    if (roomId.value) {
+      fetchRoom();
+    }
+  });
+
+  // Watch for route changes to handle page reloads
+  watch(() => route.params.roomId as string | undefined, (newRoomId: string | undefined) => {
+    if (newRoomId) {
+      fetchRoom();
+    }
+  });
+
   return {
     room,
     messages,
@@ -130,6 +170,7 @@ export function useChatRoom() {
     newMessage,
     otherUser,
     sendMessage,
-    scrollToBottom
+    scrollToBottom,
+    fetchRoom: fetchRoomMessages
   }
 }

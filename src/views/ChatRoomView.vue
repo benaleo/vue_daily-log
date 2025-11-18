@@ -1,10 +1,12 @@
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useChatRoom } from '@/composables/chat/useChatRoom'
+import { useI18n } from 'vue-i18n'
+import { useChatRoom } from '@/composables/chat/useChatRoomMessages'
 import useUser from '@/composables/useUser'
 import MainLayout from '@/layouts/MainLayout.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { user } = useUser()
@@ -17,7 +19,8 @@ const {
   newMessage, 
   otherUser, 
   sendMessage, 
-  scrollToBottom 
+  scrollToBottom,
+  error
 } = useChatRoom()
 
 const handleSendMessage = async () => {
