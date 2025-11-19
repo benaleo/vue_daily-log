@@ -127,7 +127,7 @@ const getRoomAvatar = (room: any) => {
 </script>
 
 <template>
-  <MainLayout title="Chat">
+  <MainLayout title="Chat" :hide-header="true">
     <div class="h-full flex flex-col bg-white dark:bg-gray-900">
       <div class="p-4 border-b dark:border-gray-700">
         <div class="flex items-center justify-between">
