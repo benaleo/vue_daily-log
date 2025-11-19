@@ -9,6 +9,8 @@ import useUser from "@/composables/useUser";
 import MainLayout from "@/layouts/MainLayout.vue";
 import { authService } from "@/services/supabase";
 import type { SessionUser } from "@/services/supabase";
+import { PlusIcon } from "lucide-vue-next";
+import UserSearchDrawer from '@/components/chat/UserSearchDrawer.vue';
 
 // Initialize composables inside setup
 const router = useRouter();
@@ -59,8 +61,10 @@ const selectRoom = (room: any) => {
   });
 };
 
-const createNewChat = () => {
-  toast.info(t("chat.coming_soon"));
+const showUserSearch = ref(false);
+
+const openNewChat = () => {
+  showUserSearch.value = true;
 };
 
 const getInitials = (name: string) => {
@@ -135,24 +139,17 @@ const getRoomAvatar = (room: any) => {
             {{ $t("chat.messages") }}
           </h1>
           <button
-            @click="createNewChat"
+            @click="openNewChat"
             class="p-2 rounded-full hover:bg-gray-100"
             :title="$t('chat.new_chat')"
           >
-            <svg
-              class="w-6 h-6 text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
+            <div class="text-gray-600 flex items-center justify-center w-8 h-8 rounded-full bg-gray-200 p-2"><PlusIcon /></div>
           </button>
+          
+          <UserSearchDrawer 
+            v-model="showUserSearch"
+            @update:modelValue="val => showUserSearch = val"
+          />
         </div>
 
         <div class="mt-4 relative">
@@ -246,7 +243,7 @@ const getRoomAvatar = (room: any) => {
           {{ $t("chat.start_conversation") }}
         </p>
         <button
-          @click="createNewChat"
+          @click="openNewChat"
           class="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <svg
@@ -273,7 +270,7 @@ const getRoomAvatar = (room: any) => {
           v-for="room in rooms"
           :key="room.id"
           @click="selectRoom(room)"
-          class="p-4 border-b hover:bg-gray-50 cursor-pointer transition-colors flex items-center"
+          class="p-4 border-b border-slate-200 hover:bg-gray-50 cursor-pointer transition-colors flex items-center"
           :class="{
             'bg-blue-50': route.params.roomId === room.id,
           }"

@@ -2,6 +2,8 @@ import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { chatService, type ChatRoom } from '@/services/chatService'
 import useUser from '../useUser'
 import { authService } from '@/services/supabase'
+import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 export function useChatRooms() {
   const { user } = useUser()
@@ -59,12 +61,35 @@ export function useChatRooms() {
     clearTimeout(searchTimeout)
   })
 
+  const createRoom = async (data: { name: string; type: 'PRIVATE' | 'CHANNEL'; userIds: string[] }) => {
+    try {
+      const { sessionUser } = await authService.getSession()
+      if (!sessionUser) {
+        throw new Error('User not authenticated')
+      }
+      
+      const room = await chatService.createRoom({
+        name: data.name,
+        type: data.type,
+        userIds: [...data.userIds, sessionUser.user_id]
+      })
+      
+      await fetchRooms()
+      return room
+    } catch (err) {
+      console.error('Error creating room:', err)
+      toast.error('Failed to create chat room')
+      throw err
+    }
+  }
+
   return {
     rooms,
     loading,
     error,
     searchQuery,
     handleSearch,
-    refresh: fetchRooms
+    refresh: fetchRooms,
+    createRoom
   }
 }
