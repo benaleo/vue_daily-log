@@ -31,6 +31,8 @@ export interface ChatRoom {
   unread_count?: number;
   last_message?: string;
   users?: ChatUser[];
+  last_message_sender_id?: string;
+  last_message_sender_name?: string;
 }
 
 export interface ChatRoomUser {
@@ -148,6 +150,7 @@ export const chatService = {
           "last_message_at",
           "created_at",
           "members:chat_room_users(id, user:users!chat_room_users_user_id_fkey(id, email, name, avatar_url))",
+          "messages:chat_messages(id, content, created_at, from_id, to_id, type, is_read, room_id, from:chat_room_users!chat_messages_from_id_fkey(user:users!chat_room_users_user_id_fkey(id, email, name, avatar_url)))"
         ].join(", ")
       )
       .eq("id", roomId)
@@ -182,6 +185,8 @@ export const chatService = {
       last_message_at: row.last_message_at ?? null,
       created_at: row.created_at,
       users,
+      last_message_sender_id: row.messages?.[0]?.from_id ?? null,
+      last_message_sender_name: row.messages?.[0]?.from?.user?.name ?? null,
     };
 
     return room;
@@ -361,4 +366,20 @@ export const chatService = {
 
     if (error) throw error;
   },
+
+  async getSenderName(roomId: string, userId: string) {
+    const room = await this.getChatRoomByRoomId(roomId);
+    if (!room?.last_message_sender_id) return ''
+    
+    // If it's the current user
+    if (room.last_message_sender_id === userId) {
+      return 'You'
+    }
+    
+    if (room.last_message_sender_name) {
+      return room.last_message_sender_name
+    }
+    
+    return 'Someone'
+  }
 };
