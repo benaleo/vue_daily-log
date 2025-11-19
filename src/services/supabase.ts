@@ -12,6 +12,7 @@ export type SessionUser = {
   email: string
   avatar_url: string
   role: string
+  is_public: boolean
 }
 
 export const authService = {
@@ -79,7 +80,8 @@ async signUp(email: string, password: string, name: string) {
 
     // add session role name from public.users
     if (session?.user) {
-      session.user.role = 'ADMIN'
+      const { data: user, error } = await supabase.from('users').select('role').eq('id', session?.user?.id).single()
+      session.user.role = user?.role || 'USER'
     }
 
     const sessionUser: SessionUser = {
@@ -89,21 +91,53 @@ async signUp(email: string, password: string, name: string) {
       name: session?.user?.user_metadata?.name || '',
       email: session?.user?.email || '',
       avatar_url: session?.user?.user_metadata?.avatar_url || '',
-      role: session?.user?.role || 'USER'
+      role: session?.user?.role || 'USER',
+      is_public: session?.user?.user_metadata?.is_public || false
     }
 
     return { sessionUser, error }
   },
 
 
-  async updateProfile(name: string, avatarUrl?: string) {
-    const { data, error } = await supabase.auth.updateUser({
-      data: {
-        name,
-        avatar_url: avatarUrl
+  async updateProfile(name: string, isPublic?: boolean, avatarUrl?: string) {
+    const isPublicValue = Boolean(isPublic);
+    console.log('Starting updateProfile with:', { name, isPublic: isPublicValue, avatarUrl });
+
+    try {
+      // First, update the user's metadata
+      const updateData: any = {
+        data: {
+          name: name,
+          is_public: isPublicValue
+        }
+      };
+
+      // Only add avatar_url if it's provided
+      if (avatarUrl) {
+        updateData.data.avatar_url = avatarUrl;
       }
-    })
-    return { data, error }
+
+      console.log('Sending update data:', JSON.stringify(updateData, null, 2));
+
+      // Update user with metadata
+      const { data: userData, error: userError } = await supabase.auth.updateUser(updateData);
+      
+      if (userError) {
+        console.error('Error updating user metadata:', userError);
+        return { data: null, error: userError };
+      }
+
+      console.log('Successfully updated user metadata:', userData);
+      
+      return { data: userData, error: null };
+      
+    } catch (error) {
+      console.error('Unexpected error in updateProfile:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error : new Error('Unknown error occurred') 
+      };
+    }
   },
 
   async updatePassword(newPassword: string) {

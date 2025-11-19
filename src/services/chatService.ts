@@ -364,18 +364,64 @@ export const chatService = {
   },
 
   async getSenderName(roomId: string, userId: string) {
-    const room = await this.getChatRoomByRoomId(roomId);
-    if (!room?.last_message_sender_id) return ''
+    return supabase
+      .from("chat_room_users")
+      .select("users(name)")
+      .eq("room_id", roomId)
+      .eq("user_id", userId)
+      .single()
+      .then(({ data, error }) => {
+        if (error) throw error;
+        return data?.users[0]?.name || "Unknown User";
+      });
+  },
+
+  async createRoom(data: { name: string; type: 'PRIVATE' | 'CHANNEL'; userIds: string[] }): Promise<ChatRoom> {
+    const roomId = uuidv4();
     
-    // If it's the current user
-    if (room.last_message_sender_id === userId) {
-      return 'You'
-    }
-    
+    // Create the room
+    const { data: room, error: roomError } = await supabase
+      .from('chat_rooms')
+      .insert([
+        {
+          id: roomId,
+          name: data.name,
+          room_type: data.type,
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single();
+
+    if (roomError) throw roomError;
+    if (!room) throw new Error('Failed to create room');
+
+    // Add users to the room
+    const roomUsers = data.userIds.map(userId => ({
+      id: uuidv4(),
+      room_id: roomId,
+      user_id: userId,
+      is_admin: false,
+      created_at: new Date().toISOString()
+    }));
+
+    const { error: userError } = await supabase
+      .from('chat_room_users')
+      .insert(roomUsers);
+
+    if (userError) throw userError;
+
+    // Fetch the complete room data with users
+    const completeRoom = await this.getChatRoomByRoomId(roomId);
+    if (!completeRoom) throw new Error('Failed to fetch created room');
+
+    return completeRoom;
+  },
+  
+  getSenderDisplayName(room: ChatRoom): string {
     if (room.last_message_sender_name) {
-      return room.last_message_sender_name
+      return room.last_message_sender_name;
     }
-    
-    return 'Someone'
+    return 'Someone';
   }
 };

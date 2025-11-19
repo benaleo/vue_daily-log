@@ -9,6 +9,7 @@ const defaultSessionUser: SessionUser = {
   email: '',
   avatar_url: '',
   role: 'USER',
+  is_public: false,
 }
 
 const sessionUser = ref<SessionUser>({ ...defaultSessionUser })

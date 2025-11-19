@@ -42,9 +42,14 @@ export const bannerService = {
   },
 
   async create(banner: CreateBannerDto) {
+    // add updated_at and created_at
     const { data, error } = await supabase
       .from('banners')
-      .insert(banner)
+      .insert({
+        ...banner,
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      })
       .select()
       .single()
     
@@ -52,9 +57,13 @@ export const bannerService = {
   },
 
   async update(id: number, banner: UpdateBannerDto) {
+    // add updated_at
     const { data, error } = await supabase
       .from('banners')
-      .update(banner)
+      .update({
+        ...banner,
+        updated_at: new Date().toISOString()
+      })
       .eq('id', id)
       .select()
       .single()

@@ -6,12 +6,21 @@ import type { Banner } from '@/services/bannerService'
 
 const props = defineProps<{
   banner?: Banner | null
+  show?: boolean
 }>()
 
 const emit = defineEmits<{
-  submit: [data: { name: string; url: string }]
-  cancel: []
+  (e: 'update:show', value: boolean): void
+  (e: 'submit', data: { name: string; url: string }): void
+  (e: 'cancel'): void
 }>()
+
+// Watch for show prop changes
+watch(() => props.show, (newVal) => {
+  if (!newVal) {
+    handleCancel()
+  }
+})
 
 const name = ref('')
 const url = ref('')
@@ -85,65 +94,78 @@ const handleCancel = () => {
 </script>
 
 <template>
-  <div class="space-y-4">
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-2">Nama Banner</label>
-      <input 
-        v-model="name"
-        type="text" 
-        placeholder="Masukkan nama banner..."
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        required
-      >
-    </div>
+  <div class="fixed inset-0 z-[100] bg-black bg-opacity-50 flex items-center justify-center p-4" @click.self="handleCancel">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-bold text-gray-900">{{ banner ? 'Edit' : 'Add' }} Banner</h2>
+        <button
+          @click="handleCancel"
+          class="text-gray-500 hover:text-gray-700"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Nama Banner</label>
+          <input 
+            v-model="name"
+            type="text" 
+            placeholder="Masukkan nama banner..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+        </div>
 
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-2">Upload Gambar</label>
-      <input 
-        type="file"
-        accept="image/*"
-        @change="handleFileChange"
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      >
-      <p class="text-xs text-gray-500 mt-1">Atau masukkan URL gambar dibawah</p>
-    </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Upload Gambar</label>
+          <input 
+            type="file"
+            accept="image/*"
+            @change="handleFileChange"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <p class="text-xs text-gray-500 mt-1">Atau masukkan URL gambar dibawah</p>
+        </div>
 
-    <div v-if="imagePreview" class="mt-3">
-      <img 
-        :src="imagePreview" 
-        alt="Preview"
-        class="w-full h-40 object-cover rounded-lg border border-gray-200"
-      >
-    </div>
+        <div v-if="imagePreview" class="mt-3">
+          <img 
+            :src="imagePreview" 
+            alt="Preview"
+            class="w-full h-40 object-cover rounded-lg border border-gray-200"
+          />
+        </div>
 
-    <div>
-      <label class="block text-sm font-medium text-gray-700 mb-2">URL Gambar</label>
-      <input 
-        v-model="url"
-        type="url" 
-        placeholder="https://example.com/image.jpg"
-        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        :required="!imageFile"
-      >
-    </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">URL Gambar</label>
+          <input 
+            v-model="url"
+            type="url" 
+            placeholder="https://example.com/image.jpg"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            :required="!imageFile"
+          />
+        </div>
 
-    <div class="flex gap-3 pt-4">
-      <button 
-        type="button"
-        @click="handleCancel"
-        class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-        :disabled="uploading"
-      >
-        Batal
-      </button>
-      <button 
-        type="button"
-        @click="handleSubmit"
-        class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        :disabled="uploading || (!name || (!url && !imageFile))"
-      >
-        {{ uploading ? 'Uploading...' : (banner ? 'Update' : 'Simpan') }}
-      </button>
+        <div class="flex justify-end space-x-3 pt-4">
+          <button
+            @click="handleCancel"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            @click="handleSubmit"
+            :disabled="uploading"
+            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {{ uploading ? 'Uploading...' : (banner ? 'Update' : 'Create') }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
