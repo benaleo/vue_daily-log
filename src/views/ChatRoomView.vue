@@ -178,7 +178,7 @@ const getRoomAvatar = (room: any) => {
         </div>
       </div>
 
-      <div v-if="loading" class="flex-1 flex items-center justify-center">
+      <div v-if="loading" class="fixed left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex-1 flex items-center justify-center">
         <div
           class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
         ></div>
