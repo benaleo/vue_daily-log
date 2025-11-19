@@ -53,6 +53,35 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
     }
   }
 
+  const markMessagesAsRead = async () => {
+    if (!fromId.value || !roomId.value) return
+    
+    try {
+      await chatService.markMessagesAsRead(roomId.value, fromId.value)
+    } catch (err) {
+      console.error('Error marking messages as read:', err)
+    }
+  }
+
+  const scrollToBottom = () => {
+    nextTick(() => {
+      const container = document.querySelector('.messages-container')
+      if (container) {
+        container.scrollTop = container.scrollHeight
+      }
+    })
+  }
+
+  // Expose a method to scroll to bottom that can be called from components
+  const forceScrollToBottom = () => {
+    setTimeout(() => {
+      const container = document.querySelector('.messages-container')
+      if (container) {
+        container.scrollTop = container.scrollHeight
+      }
+    }, 100)
+  }
+
   const fetchMessages = async () => {
     if (!roomId.value) {
       loading.value = false;
@@ -69,15 +98,16 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
       
       if (fetchedMessages) {
         await markMessagesAsRead();
-        await nextTick();
-        scrollToBottom();
       }
-      }
+    }
     } catch (err) {
       console.error('Error in fetchMessages:', err);
       error.value = err as Error;
     } finally {
       loading.value = false;
+      // Scroll to bottom after loading is complete and messages are rendered
+      await nextTick();
+      scrollToBottom();
     }
   }
 
@@ -110,25 +140,6 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
       // Re-add the message to the input if sending failed
       newMessage.value = content
     }
-  }
-
-  const markMessagesAsRead = async () => {
-    if (!fromId.value || !roomId.value) return
-    
-    try {
-      await chatService.markMessagesAsRead(roomId.value, fromId.value)
-    } catch (err) {
-      console.error('Error marking messages as read:', err)
-    }
-  }
-
-  const scrollToBottom = () => {
-    nextTick(() => {
-      const container = document.querySelector('.messages-container')
-      if (container) {
-        container.scrollTop = container.scrollHeight
-      }
-    })
   }
 
   // Set up real-time subscription
@@ -215,6 +226,7 @@ export function useChatRoom(userIdRef?: Ref<string | undefined>) {
     otherUser,
     sendMessage,
     scrollToBottom,
+    forceScrollToBottom,
     fetchRoom: fetchRoomMessages
   }
 }

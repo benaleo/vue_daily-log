@@ -24,75 +24,93 @@ const {
   otherUser,
   sendMessage,
   scrollToBottom,
+  forceScrollToBottom,
   error,
 } = useChatRoom(computed(() => sessionUser.value.user_id));
 
 // Get current user when component mounts
 onMounted(async () => {
   if (!sessionUser.value.user_id) {
-    await ensureSession()
+    await ensureSession();
   }
   // Scroll to bottom when component is mounted
   await nextTick();
-  scrollToBottom();
-})
+  forceScrollToBottom();
+});
 
 // Watch for changes in messages and scroll to bottom
-watch(() => messages.value, async () => {
-  await nextTick();
-  scrollToBottom();
-}, { deep: true });
+watch(
+  () => messages.value,
+  async () => {
+    await nextTick();
+    scrollToBottom();
+  },
+  { deep: true }
+);
 
-const handleSendMessage = async () => {
-  const message = newMessage.value.trim()
-  if (!message) return
-  
-  // Ensure user is logged in
-  if (!sessionUser.value.user_id) {
-    const current = await ensureSession()
-    if (!current?.user_id) {
-      console.error('User not authenticated')
-      router.push('/login')
-      return
+// Watch for loading state to scroll to bottom when messages are loaded
+watch(
+  () => loading.value,
+  async (newLoading) => {
+    if (!newLoading && messages.value.length > 0) {
+      await nextTick();
+      forceScrollToBottom();
     }
   }
-  
+);
+
+const handleSendMessage = async () => {
+  const message = newMessage.value.trim();
+  if (!message) return;
+
+  // Ensure user is logged in
+  if (!sessionUser.value.user_id) {
+    const current = await ensureSession();
+    if (!current?.user_id) {
+      console.error("User not authenticated");
+      router.push("/login");
+      return;
+    }
+  }
+
   try {
-    await sendMessage()
+    await sendMessage();
     // Broadcast to recipient topic so their list updates and they get notified
     try {
       if (otherUser.value?.id && room.value?.id) {
-        const channel = supabase.channel(`user_${otherUser.value.id}`)
+        const channel = supabase.channel(`user_${otherUser.value.id}`);
         await channel.subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
+          if (status === "SUBSCRIBED") {
             channel.send({
-              type: 'broadcast',
-              event: 'new_message',
+              type: "broadcast",
+              event: "new_message",
               payload: {
                 roomId: room.value?.id,
                 fromId: sessionUser.value.user_id,
                 preview: message,
               },
-            })
+            });
             // best-effort cleanup
-            try { channel.unsubscribe() } catch {}
+            try {
+              channel.unsubscribe();
+            } catch {}
           }
-        })
+        });
       }
     } catch (e) {
-      console.warn('Broadcast to recipient failed (non-fatal):', e)
+      console.warn("Broadcast to recipient failed (non-fatal):", e);
     }
-    newMessage.value = ''
+    newMessage.value = "";
     // Reset textarea height
-    const textarea = document.querySelector('textarea')
+    const textarea = document.querySelector("textarea");
     if (textarea) {
-      textarea.style.height = 'auto'
-      textarea.style.height = '44px'
+      textarea.style.height = "auto";
+      textarea.style.height = "44px";
     }
-    await nextTick()
-    scrollToBottom()
+    await nextTick();
+    forceScrollToBottom();
   } catch (error) {
-    console.error('Failed to send message:', error)
+    console.error("Failed to send message:", error);
   }
 };
 
@@ -115,29 +133,35 @@ const formatTime = (dateString: string) => {
 
 const handleTextareaInput = (event: Event) => {
   const target = event.target as HTMLTextAreaElement;
-  target.style.height = 'auto';
-  target.style.height = target.scrollHeight + 'px';
+  target.style.height = "auto";
+  target.style.height = target.scrollHeight + "px";
 };
 
 const handleTextareaKeydown = (event: KeyboardEvent) => {
-  const target = event.target as HTMLTextAreaElement
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault()
-    handleSendMessage()
-  } else if (event.key === 'Enter' && event.shiftKey) {
+  const target = event.target as HTMLTextAreaElement;
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    handleSendMessage();
+  } else if (event.key === "Enter" && event.shiftKey) {
     // Allow Shift+Enter for new line
     // The default behavior will add a new line
   } else {
     // Auto-resize for other inputs
-    target.style.height = 'auto'
-    target.style.height = target.scrollHeight + 'px'
+    target.style.height = "auto";
+    target.style.height = target.scrollHeight + "px";
   }
 };
 </script>
 
 <template>
-  <MainLayout :title="room?.name || 'Chat'" :hide-header="true" class="overflow-hidden">
-    <div class="fixed left-0 right-0 top-0 bottom-0 max-w-md mx-auto flex flex-col h-screen bg-white dark:bg-gray-900 overflow-hidden">
+  <MainLayout
+    :title="room?.name || 'Chat'"
+    :hide-header="true"
+    class="overflow-hidden"
+  >
+    <div
+      class="fixed left-0 right-0 top-0 bottom-0 max-w-md mx-auto flex flex-col h-screen bg-white dark:bg-gray-900 overflow-hidden"
+    >
       <!-- Header -->
       <div
         class="flex items-center p-4 border-b dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50"
@@ -177,7 +201,7 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
               v-else
               class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium"
             >
-              {{ getInitials(otherUser.full_name || 'unknown') }}
+              {{ getInitials(otherUser.full_name || "unknown") }}
             </div>
             <div
               class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"
@@ -185,7 +209,7 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
           </div>
           <div class="ml-3">
             <h2 class="font-medium text-gray-900 dark:text-white">
-              {{ otherUser.full_name || 'unknown' }}
+              {{ otherUser.full_name || "unknown" }}
             </h2>
             <p class="text-xs text-gray-500 dark:text-gray-400">Online</p>
           </div>
@@ -249,7 +273,7 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
       <div
         v-else
         ref="messagesEndRef"
-        class="flex-1 overflow-y-auto p-4 space-y-4 messages-container"
+        class="flex-1 overflow-y-auto p-4 space-y-4 messages-container pb-42"
       >
         <div
           v-for="message in messages"
@@ -277,7 +301,9 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
       </div>
 
       <!-- Message input -->
-      <div class="fixed bottom-16 w-full max-w-md p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
+      <div
+        class="fixed bottom-16 w-full max-w-md p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800"
+      >
         <form
           @submit.prevent="handleSendMessage"
           class="flex items-center space-x-2"
