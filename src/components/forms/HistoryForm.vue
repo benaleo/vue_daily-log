@@ -82,8 +82,8 @@ const handleSubmit = async () => {
   // Upload image if file selected
   if (imageFile.value) {
     try {
-      const { session } = await authService.getSession()
-      const email = session?.user?.email || 'anonymous'
+      const { sessionUser } = await authService.getSession()
+      const email = sessionUser?.email || 'anonymous'
       
       const result = await uploadImage(imageFile.value, email, 'history')
       finalImageUrl = result.url
