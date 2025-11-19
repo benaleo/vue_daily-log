@@ -173,9 +173,28 @@ const handleLogout = async () => {
 }
 
 const confirmLogout = async () => {
-  await authService.logout()
-  router.push('/login')
-  toast.success('Logout successfully')
+  try {
+    // Show loading state
+    toast.loading('Signing out...')
+    
+    // Immediately redirect to login page
+    const loginUrl = '/login'
+    
+    // Perform sign out in the background
+    authService.logout().catch(console.error)
+    
+    // Clear any existing session data
+    localStorage.clear()
+    
+    // Force redirect without waiting for the logout to complete
+    window.location.href = loginUrl
+    
+  } catch (error) {
+    console.error('Logout error:', error)
+    toast.dismiss()
+    // Even if there's an error, force redirect to login
+    window.location.href = '/login'
+  }
 }
 
 // Banner Management

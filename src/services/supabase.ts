@@ -54,8 +54,19 @@ async signUp(email: string, password: string, name: string) {
   },
 
   async logout() {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    try {
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      return { error }
+    } catch (error) {
+      console.error('Logout error:', error)
+      return { 
+        error: {
+          message: error instanceof Error ? error.message : 'Failed to sign out',
+          details: error
+        }
+      }
+    }
   },
 
   async getUser() {
