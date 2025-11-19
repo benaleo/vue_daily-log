@@ -13,6 +13,7 @@ const props = defineProps<{
   backButton?: {
     to: string
   }
+  hideHeader?: boolean
 }>()
 
 const route = useRoute()
@@ -69,7 +70,7 @@ onUnmounted(() => {
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <div class="w-full max-w-md mx-auto bg-white min-h-screen flex flex-col">
-      <AppHeader :title="title || 'Diary Log'" :back-button="backButton" />
+      <AppHeader v-if="!hideHeader" :title="title || 'Diary Log'" :back-button="backButton" />
       
       <main class="flex-1 overflow-y-auto pb-16">
         <slot />

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, computed, onMounted, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useChatRoom } from "@/composables/chat/useChatRoomMessages";
@@ -13,15 +13,9 @@ const route = useRoute();
 const router = useRouter();
 const { sessionUser, ensureSession } = useSessionUser();
 const showMenu = ref(false);
+const messagesEndRef = ref<HTMLElement | null>(null);
 
-// Get current user when component mounts
-onMounted(async () => {
-  if (!sessionUser.value.user_id) {
-    await ensureSession()
-  }
-})
-
-// Log user for debugging
+// Initialize chat room
 const {
   room,
   messages,
@@ -32,6 +26,22 @@ const {
   scrollToBottom,
   error,
 } = useChatRoom(computed(() => sessionUser.value.user_id));
+
+// Get current user when component mounts
+onMounted(async () => {
+  if (!sessionUser.value.user_id) {
+    await ensureSession()
+  }
+  // Scroll to bottom when component is mounted
+  await nextTick();
+  scrollToBottom();
+})
+
+// Watch for changes in messages and scroll to bottom
+watch(() => messages.value, async () => {
+  await nextTick();
+  scrollToBottom();
+}, { deep: true });
 
 const handleSendMessage = async () => {
   const message = newMessage.value.trim()
@@ -126,11 +136,11 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
 </script>
 
 <template>
-  <MainLayout :title="room?.name || 'Chat'">
-    <div class="flex flex-col h-full bg-white dark:bg-gray-900">
+  <MainLayout :title="room?.name || 'Chat'" :hide-header="true" class="overflow-hidden">
+    <div class="fixed left-0 right-0 top-0 bottom-0 max-w-md mx-auto flex flex-col h-screen bg-white dark:bg-gray-900 overflow-hidden">
       <!-- Header -->
       <div
-        class="flex items-center p-4 border-b dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-10"
+        class="flex items-center p-4 border-b dark:border-gray-700 bg-white dark:bg-gray-800 sticky top-0 z-50"
       >
         <button
           @click="router.back()"
@@ -167,7 +177,7 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
               v-else
               class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium"
             >
-              {{ getInitials(otherUser.full_name || otherUser.email) }}
+              {{ getInitials(otherUser.full_name || 'unknown') }}
             </div>
             <div
               class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800"
@@ -175,7 +185,7 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
           </div>
           <div class="ml-3">
             <h2 class="font-medium text-gray-900 dark:text-white">
-              {{ otherUser.full_name || otherUser.email }}
+              {{ otherUser.full_name || 'unknown' }}
             </h2>
             <p class="text-xs text-gray-500 dark:text-gray-400">Online</p>
           </div>
@@ -238,7 +248,8 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
 
       <div
         v-else
-        class="flex-1 overflow-y-auto p-4 space-y-4 messages-container mb-24"
+        ref="messagesEndRef"
+        class="flex-1 overflow-y-auto p-4 space-y-4 messages-container"
       >
         <div
           v-for="message in messages"
