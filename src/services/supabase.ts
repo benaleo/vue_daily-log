@@ -80,7 +80,8 @@ async signUp(email: string, password: string, name: string) {
 
     // add session role name from public.users
     if (session?.user) {
-      session.user.role = 'ADMIN'
+      const { data: user, error } = await supabase.from('users').select('role').eq('id', session?.user?.id).single()
+      session.user.role = user?.role || 'USER'
     }
 
     const sessionUser: SessionUser = {

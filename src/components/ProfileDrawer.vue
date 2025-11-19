@@ -107,7 +107,7 @@ const saveProfile = async () => {
 
       window.location.reload();
     }
-  }, 3000);
+  }, avatarFile.value ? 3000 : 1000);
 
   try {
     toast.loading("Saving profile...");
@@ -192,7 +192,7 @@ const savePassword = async () => {
 
       window.location.reload();
     }
-  }, 3000);
+  }, 1000);
 
   try {
     const { error } = await authService.updatePassword(newPassword.value);
