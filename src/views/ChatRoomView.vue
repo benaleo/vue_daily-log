@@ -1,13 +1,13 @@
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, watch } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useChatRooms } from "@/composables/chat/useChatRooms";
 import { toast } from "vue-sonner";
+import useUser from "@/composables/useUser";
 import MainLayout from "@/layouts/MainLayout.vue";
 import { authService } from "@/services/supabase";
 import type { SessionUser } from "@/services/supabase";
-import { useChatRealtime } from "@/composables/chat/useChatRealtime";
 
 // Initialize composables inside setup
 const router = useRouter();
@@ -39,22 +39,7 @@ onMounted(async () => {
   refreshRooms();
 });
 
-// Global realtime handling
-const { start: startRealtime, stop: stopRealtime } = useChatRealtime();
-
-// Start realtime when user changes
-watch(
-  () => sessionUser.value.user_id,
-  (newUserId) => {
-    startRealtime(newUserId, { onRoomsChange: () => refreshRooms() });
-  },
-  { immediate: true }
-);
-
-// Clean up on unmount
-onUnmounted(() => {
-  stopRealtime();
-});
+// Realtime handling is now managed in MainLayout.vue
 
 const selectRoom = (room: any) => {
   router.push({
@@ -129,7 +114,6 @@ const getRoomAvatar = (room: any) => {
   return room.avatar;
 };
 
-console.log("rooms", rooms);
 </script>
 
 <template>

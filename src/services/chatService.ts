@@ -161,7 +161,6 @@ export const chatService = {
 
     const row: any = data as any;
 
-    console.log("row", JSON.stringify(row));
     const users: ChatUser[] = (row.members || [])
       .map((m: any) => ({
         ...m.user,
@@ -351,10 +350,7 @@ export const chatService = {
 
   async markMessagesAsRead(roomId: string, fromId: string): Promise<void> {
     const room = await this.getChatRoomByRoomId(roomId);
-    console.log("room", JSON.stringify(room));
     const cruId = room?.users?.find((u) => u.id === fromId)?.cru_id;
-    console.log("cruId", cruId);
-    console.log("fromId", fromId);
     if (!room) return;
 
     const { error } = await supabase

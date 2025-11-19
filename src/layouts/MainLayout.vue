@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { watch, onUnmounted, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useChatRealtime } from '@/composables/chat/useChatRealtime'
+import { useChatRooms } from '@/composables/chat/useChatRooms'
+import { authService, supabase } from '@/services/supabase'
+import type { Session } from '@supabase/supabase-js'
 import AppHeader from '@/components/AppHeader.vue'
 import MenuBar from '@/components/MenuBar.vue'
 
@@ -13,12 +17,53 @@ const props = defineProps<{
 
 const route = useRoute()
 
-// Set document title based on the title prop or route meta
-watch(() => props.title || route.meta.title, (newTitle) => {
-  if (newTitle) {
-    document.title = `Diary Log${newTitle === 'Home' ? '' : ' - ' + newTitle}`
+// Initialize chat realtime
+const { start: startRealtime, stop: stopRealtime } = useChatRealtime()
+const { refresh: refreshRooms } = useChatRooms()
+
+// Watch for title changes to update document title
+watch(
+  () => props.title || route.meta.title,
+  (newTitle) => {
+    if (newTitle) {
+      document.title = `Diary Log${newTitle === 'Home' ? '' : ' - ' + newTitle}`
+    }
+  },
+  { immediate: true }
+)
+
+// Initialize realtime on component mount
+const authSubscription = ref<{ subscription: { unsubscribe: () => void } }>()
+
+onMounted(async () => {
+  const { sessionUser } = await authService.getSession()
+  if (sessionUser?.user_id) {
+    startRealtime(sessionUser.user_id, { onRoomsChange: () => refreshRooms() })
   }
-}, { immediate: true })
+
+  // Set up auth state change listener
+  const { data } = supabase.auth.onAuthStateChange(
+    async (event: string, session: Session | null) => {
+      const userId = session?.user?.id
+      if (userId) {
+        startRealtime(userId, { onRoomsChange: () => refreshRooms() })
+      } else {
+        stopRealtime()
+      }
+    }
+  )
+  
+  authSubscription.value = data
+})
+
+// Clean up realtime subscriptions when layout is destroyed
+onUnmounted(() => {
+  stopRealtime()
+  // Unsubscribe from auth state changes
+  if (authSubscription.value) {
+    authSubscription.value.subscription.unsubscribe()
+  }
+})
 </script>
 
 <template>

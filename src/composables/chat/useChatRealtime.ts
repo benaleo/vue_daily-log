@@ -61,12 +61,9 @@ export function useChatRealtime() {
       .on("broadcast", { event: "new_message" }, async (payload: any) => {
         try {
           await onRoomsChange?.();
-          console.log("payload", payload)
           const roomId = payload?.payload.roomId
-          console.log("roomId", roomId)
           if (roomId) {
             const room = await chatService.getChatRoomByRoomId(roomId as string);
-            console.log("room", room)
             if (!room) {
               toast.success("New message received");
             } else {
