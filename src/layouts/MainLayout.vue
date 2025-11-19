@@ -3,6 +3,7 @@ import { watch, onUnmounted, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useChatRealtime } from '@/composables/chat/useChatRealtime'
 import { useChatRooms } from '@/composables/chat/useChatRooms'
+import { useChatEvents } from '@/composables/chat/useChatEvents'
 import { authService, supabase } from '@/services/supabase'
 import type { Session } from '@supabase/supabase-js'
 import AppHeader from '@/components/AppHeader.vue'
@@ -20,7 +21,7 @@ const route = useRoute()
 
 // Initialize chat realtime
 const { start: startRealtime, stop: stopRealtime } = useChatRealtime()
-const { refresh: refreshRooms } = useChatRooms()
+const chatEvents = useChatEvents()
 
 // Watch for title changes to update document title
 watch(
@@ -39,7 +40,12 @@ const authSubscription = ref<{ subscription: { unsubscribe: () => void } }>()
 onMounted(async () => {
   const { sessionUser } = await authService.getSession()
   if (sessionUser?.user_id) {
-    startRealtime(sessionUser.user_id, { onRoomsChange: () => refreshRooms() })
+    startRealtime(sessionUser.user_id, { 
+      onRoomsChange: () => {
+        // Trigger global refresh event
+        chatEvents.triggerRefresh()
+      }
+    })
   }
 
   // Set up auth state change listener
@@ -47,7 +53,12 @@ onMounted(async () => {
     async (event: string, session: Session | null) => {
       const userId = session?.user?.id
       if (userId) {
-        startRealtime(userId, { onRoomsChange: () => refreshRooms() })
+        startRealtime(userId, { 
+          onRoomsChange: () => {
+            // Trigger global refresh event
+            chatEvents.triggerRefresh()
+          }
+        })
       } else {
         stopRealtime()
       }

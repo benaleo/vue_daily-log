@@ -1,8 +1,9 @@
 <script lang="ts" setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useChatRooms } from "@/composables/chat/useChatRooms";
+import { useChatEvents } from "@/composables/chat/useChatEvents";
 import { toast } from "vue-sonner";
 import useUser from "@/composables/useUser";
 import MainLayout from "@/layouts/MainLayout.vue";
@@ -13,6 +14,7 @@ import type { SessionUser } from "@/services/supabase";
 const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
+const chatEvents = useChatEvents();
 const sessionUser = ref<SessionUser>({
   token: "",
   session: null,
@@ -37,6 +39,14 @@ onMounted(async () => {
   const { sessionUser: s } = await authService.getSession();
   sessionUser.value = s;
   refreshRooms();
+  
+  // Register the refresh callback globally
+  chatEvents.setRefreshCallback(refreshRooms);
+});
+
+// Clean up when component is unmounted
+onUnmounted(() => {
+  chatEvents.clearRefreshCallback();
 });
 
 // Realtime handling is now managed in MainLayout.vue
