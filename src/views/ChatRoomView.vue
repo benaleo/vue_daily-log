@@ -4,11 +4,9 @@ import { useRouter, useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { useChatRooms } from "@/composables/chat/useChatRooms";
 import { useChatEvents } from "@/composables/chat/useChatEvents";
+import { useSessionUser } from "@/composables/useSessionUser";
 import { toast } from "vue-sonner";
-import useUser from "@/composables/useUser";
 import MainLayout from "@/layouts/MainLayout.vue";
-import { authService } from "@/services/supabase";
-import type { SessionUser } from "@/services/supabase";
 import { PlusIcon } from "lucide-vue-next";
 import UserSearchDrawer from '@/components/chat/UserSearchDrawer.vue';
 
@@ -17,15 +15,7 @@ const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
 const chatEvents = useChatEvents();
-const sessionUser = ref<SessionUser>({
-  token: "",
-  session: null,
-  user_id: "",
-  name: "",
-  email: "",
-  avatar_url: "",
-  role: "USER",
-});
+const { sessionUser, isAuthenticated, isLoading: sessionLoading } = useSessionUser();
 
 const {
   rooms,
@@ -38,10 +28,7 @@ const {
 
 // Initial fetch on page load
 onMounted(async () => {
-  const { sessionUser: s } = await authService.getSession();
-  sessionUser.value = s;
-  refreshRooms();
-  
+  await refreshRooms();
   // Register the refresh callback globally
   chatEvents.setRefreshCallback(refreshRooms);
 });
