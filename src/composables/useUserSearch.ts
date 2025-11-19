@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { supabase } from '@/services/supabase'
+import useSessionUser from './useSessionUser'
 
 export interface User {
   id: string
@@ -14,6 +15,8 @@ export function useUserSearch() {
   const hasMore = ref(true)
   const currentPage = ref(1)
   const pageSize = 5
+
+  const { sessionUser: session } = useSessionUser()
 
   const searchUsers = async (query: string, page: number = 1) => {
     if (!query.trim() || query.length < 3) {
@@ -34,6 +37,8 @@ export function useUserSearch() {
         .from('users')
         .select('id, name, avatar_url', { count: 'exact' })
         .ilike('name', `%${query}%`)
+        .eq('is_public', true)
+        .neq('id', session.value.user_id)
         .range(from, to)
 
       if (searchError) throw searchError
