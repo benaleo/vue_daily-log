@@ -1,23 +1,49 @@
-import { createClient } from '@supabase/supabase-js'
+// Import the Supabase client from our implementation
+import { supabase } from '@/lib/supabase';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || ''
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+// Re-export the Supabase clients
+export { supabase };
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export type SessionUser = {
+  token: string
+  session: any
+  user_id: string
+  name: string
+  email: string
+  avatar_url: string
+  role: string
+}
 
 export const authService = {
-  async signUp(email: string, password: string, name: string) {
+  // Update the signUp function in authService
+async signUp(email: string, password: string, name: string) {
+  try {
+    // Use the standard signUp method
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          name
+          name: name,
+          email_confirm: true // Skip email confirmation in development
         }
       }
-    })
-    return { data, error }
-  },
+    });
+
+    if (error) throw error;
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Signup error:', error);
+    return {
+      data: null,
+      error: {
+        message: error instanceof Error ? error.message : 'An unknown error occurred',
+        details: error
+      }
+    };
+  }
+},
 
   async signIn(email: string, password: string) {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -28,8 +54,19 @@ export const authService = {
   },
 
   async logout() {
-    const { error } = await supabase.auth.signOut()
-    return { error }
+    try {
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut()
+      return { error }
+    } catch (error) {
+      console.error('Logout error:', error)
+      return { 
+        error: {
+          message: error instanceof Error ? error.message : 'Failed to sign out',
+          details: error
+        }
+      }
+    }
   },
 
   async getUser() {
@@ -39,8 +76,25 @@ export const authService = {
 
   async getSession() {
     const { data: { session }, error } = await supabase.auth.getSession()
-    return { session, error }
+
+    // add session role name from public.users
+    if (session?.user) {
+      session.user.role = 'ADMIN'
+    }
+
+    const sessionUser: SessionUser = {
+      token: session?.access_token || '',
+      session: session,
+      user_id: session?.user?.id || '',
+      name: session?.user?.user_metadata?.name || '',
+      email: session?.user?.email || '',
+      avatar_url: session?.user?.user_metadata?.avatar_url || '',
+      role: session?.user?.role || 'USER'
+    }
+
+    return { sessionUser, error }
   },
+
 
   async updateProfile(name: string, avatarUrl?: string) {
     const { data, error } = await supabase.auth.updateUser({

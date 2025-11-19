@@ -4,13 +4,14 @@ import { useImageUpload } from '@/composables/useImageUpload'
 import { authService } from '@/services/supabase'
 import type { History, HistoryType } from '@/services/historyService'
 import { useOptionHistoryCategories } from '@/composables/useOptionHistoryCategories'
+import { format } from 'date-fns'
 
 const props = defineProps<{
   history?: History | null
 }>()
 
 const emit = defineEmits<{
-  submit: [data: { name: string; category_id: number; image_url: string | null; type: HistoryType; amount: number }]
+  submit: [data: { name: string; category_id: number; image_url: string | null; type: HistoryType; amount: number; ts_at: string }]
   cancel: []
 }>()
 
@@ -18,6 +19,8 @@ const name = ref('')
 const categoryId = ref<number | ''>('')
 const type = ref<HistoryType>('SPEND')
 const amount = ref<number>(0)
+const tsAt = ref<string>(new Date().toISOString())
+const showDateTimePicker = ref(false)
 const imageUrl = ref<string | null>(null)
 const imageFile = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
@@ -30,6 +33,8 @@ const resetForm = () => {
   categoryId.value = ''
   type.value = 'SPEND'
   amount.value = 0
+  tsAt.value = new Date().toISOString()
+  showDateTimePicker.value = false
   imageUrl.value = null
   imageFile.value = null
   imagePreview.value = null
@@ -46,6 +51,7 @@ watch(() => props.history, (newHistory) => {
     categoryId.value = newHistory.category_id
     type.value = newHistory.type
     amount.value = newHistory.amount
+    tsAt.value = newHistory.ts_at || new Date().toISOString()
     imageUrl.value = newHistory.image_url
     imagePreview.value = newHistory.image_url
   } else {
@@ -87,13 +93,15 @@ const handleSubmit = async () => {
     }
   }
 
-  emit('submit', {
+  const submitData = {
     name: name.value,
     category_id: Number(categoryId.value),
     image_url: finalImageUrl,
     type: type.value,
-    amount: Number(amount.value)
-  })
+    amount: Number(amount.value),
+    ts_at: tsAt.value
+  }
+  emit('submit', submitData)
 }
 
 const handleCancel = () => {
@@ -166,6 +174,36 @@ const handleCancel = () => {
         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         required
       >
+    </div>
+
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal & Waktu</label>
+      <div class="relative">
+        <input
+          type="text"
+          :value="format(new Date(tsAt), 'dd MMMM yyyy HH:mm')"
+          readonly
+          @click="showDateTimePicker = !showDateTimePicker"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+        />
+        <div v-if="showDateTimePicker" class="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg p-4">
+          <input
+            type="datetime-local"
+            :value="format(new Date(tsAt), 'yyyy-MM-dd\'T\'HH:mm')"
+            @input="(e) => { tsAt = new Date((e.target as HTMLInputElement).value).toISOString() }"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <div class="flex justify-end mt-2">
+            <button
+              type="button"
+              @click="showDateTimePicker = false"
+              class="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div>

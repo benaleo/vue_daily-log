@@ -1,742 +1,286 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import MainLayout from '@/layouts/MainLayout.vue'
-import { authService } from '@/services/supabase'
-import { useImageUpload } from '@/composables/useImageUpload'
-import { useBanners } from '@/composables/useBanners'
-import { useOptionHistoryCategories } from '@/composables/useOptionHistoryCategories'
-import { bannerService, type Banner } from '@/services/bannerService'
-import { historyCategoryService, type HistoryCategory } from '@/services/historyCategoryService'
-import BannerForm from '@/components/forms/BannerForm.vue'
-import { toast } from 'vue-sonner'
-import ConfirmAlert from '@/components/ConfirmAlert.vue'
+import { ref, watch } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import MainLayout from "@/layouts/MainLayout.vue";
+import { userFollowers } from "@/services/userFollowersService";
+import { useGetUserProfile } from "@/composables/useGetUserProfile";
+import { toast } from "vue-sonner";
+import UserListPopup from "@/components/UserListPopup.vue";
+import { useUser } from "@/composables/useUser";
+import { chatRoomService } from "@/services/chatRoomService";
 
-const router = useRouter()
+const router = useRouter();
+const route = useRoute();
 
-const user = ref({
-  name: '',
-  email: '',
-  avatar: ''
-})
+const {
+  user,
+  loading,
+  error,
+  isCurrentUser,
+  fetchUserProfile,
+  fetchCurrentUser,
+  toggleFollow,
+} = useGetUserProfile();
 
-const showEditProfile = ref(false)
-const showEditPassword = ref(false)
-const showBannerSettings = ref(false)
-const showCategorySettings = ref(false)
-const showBannerForm = ref(false)
-const showCategoryForm = ref(false)
-const showLogoutConfirm = ref(false)
-const showBannerDeleteConfirm = ref(false)
-const showCategoryDeleteConfirm = ref(false)
-const itemToDelete = ref<number | null>(null)
-const selectedBanner = ref<Banner | null>(null)
-const selectedCategory = ref<HistoryCategory | null>(null)
-const categoryName = ref('')
+const stats = ref({
+  followers: 0,
+  following: 0,
+});
 
-const editName = ref('')
-const editAvatar = ref('')
-const avatarFile = ref<File | null>(null)
-const avatarPreview = ref<string | null>(null)
+const showPopup = ref(false);
+const popupType = ref<"followers" | "following">("followers");
 
-const { uploading, uploadImage } = useImageUpload()
-const { banners, fetchBanners: loadBanners } = useBanners()
-const { categories, fetchCategories: loadCategories } = useOptionHistoryCategories()
+const openPopup = (type: "followers" | "following") => {
+  popupType.value = type;
+  showPopup.value = true;
+};
 
-const oldPassword = ref('')
-const newPassword = ref('')
-const confirmPassword = ref('')
-
-const errorMessage = ref('')
-const successMessage = ref('')
-
-onMounted(async () => {
-  await loadUserData()
-})
+const closePopup = () => {
+  showPopup.value = false;
+};
 
 const loadUserData = async () => {
-  const { session } = await authService.getSession()
-  if (session?.user) {
-    user.value = {
-      name: session.user.user_metadata?.name || 'User',
-      email: session.user.email || '',
-      avatar: session.user.user_metadata?.avatar_url || '/img.jpg'
-    }
-  }
-}
-
-const openEditProfile = () => {
-  editName.value = user.value.name
-  editAvatar.value = user.value.avatar
-  avatarFile.value = null
-  avatarPreview.value = user.value.avatar
-  showEditProfile.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
-}
-
-const handleAvatarChange = (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  
-  if (file) {
-    avatarFile.value = file
-    
-    // Create preview
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      avatarPreview.value = e.target?.result as string
-    }
-    reader.readAsDataURL(file)
-  }
-}
-
-const saveProfile = async () => {
   try {
-    let finalAvatarUrl = editAvatar.value
-    
-    // Upload avatar if file selected
-    if (avatarFile.value) {
-      const { session } = await authService.getSession()
-      const email = session?.user?.email || 'anonymous'
-      
-      const result = await uploadImage(avatarFile.value, email, 'avatar')
-      finalAvatarUrl = result.url
-    }
-    
-    const { error } = await authService.updateProfile(editName.value, finalAvatarUrl)
-    if (error) throw error
-    
-    successMessage.value = 'Profile updated successfully'
-    await loadUserData()
-    
-    setTimeout(() => {
-      showEditProfile.value = false
-      successMessage.value = ''
-    }, 1500)
+    const userId = route.query.id?.toString();
 
-    toast.success(successMessage.value)
-  } catch (error: any) {
-    errorMessage.value = error.message || 'Failed to update profile'
-    toast.error(errorMessage.value)
-  }
-}
-
-const openEditPassword = () => {
-  oldPassword.value = ''
-  newPassword.value = ''
-  confirmPassword.value = ''
-  showEditPassword.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
-}
-
-const savePassword = async () => {
-  errorMessage.value = ''
-  
-  if (!oldPassword.value || !newPassword.value || !confirmPassword.value) {
-    errorMessage.value = 'All fields must be filled'
-    return
-  }
-  
-  if (newPassword.value !== confirmPassword.value) {
-    errorMessage.value = 'New password and confirmation do not match'
-    return
-  }
-  
-  if (newPassword.value.length < 6) {
-    errorMessage.value = 'New password must be at least 6 characters long'
-    return
-  }
-
-  try {
-    // Note: Supabase doesn't verify old password, you'd need custom logic for that
-    const { error } = await authService.updatePassword(newPassword.value)
-    if (error) throw error
-    
-    successMessage.value = 'Password updated successfully'
-    
-    setTimeout(() => {
-      showEditPassword.value = false
-      successMessage.value = ''
-    }, 1500)
-    toast.success(successMessage.value)
-  } catch (error: any) {
-    errorMessage.value = error.message || 'Failed to change password'
-    toast.error(errorMessage.value)
-  }
-}
-
-const handleLogout = async () => {
-  showLogoutConfirm.value = true
-}
-
-const confirmLogout = async () => {
-  await authService.logout()
-  router.push('/login')
-  toast.success('Logout successfully')
-}
-
-// Banner Management
-const openBannerSettings = async () => {
-  await loadBanners()
-  showBannerSettings.value = true
-}
-
-const openBannerCreate = () => {
-  selectedBanner.value = null
-  showBannerForm.value = true
-}
-
-const openBannerEdit = (banner: Banner) => {
-  selectedBanner.value = banner
-  showBannerForm.value = true
-}
-
-const handleBannerSubmit = async (data: { name: string; url: string }) => {
-  try {
-    if (selectedBanner.value) {
-      const { error } = await bannerService.update(selectedBanner.value.id, data)
-      if (error) throw error
-      toast.success('Banner updated successfully')
+    // If no ID in URL, fetch current user
+    if (!userId) {
+      await fetchCurrentUser();
     } else {
-      const { error } = await bannerService.create(data)
-      if (error) throw error
-      toast.success('Banner created successfully')
+      // Load user by ID using the composable
+      await fetchUserProfile(userId);
     }
-    
-    await loadBanners()
-    showBannerForm.value = false
-    selectedBanner.value = null
-  } catch (error: any) {
-    toast.error(error.message || 'Failed to save banner')
+  } catch (err) {
+    console.error("Error loading user data:", err);
+    toast.error("Failed to load user profile");
+    router.push("/");
   }
-}
+};
 
-const handleBannerDelete = (id: number) => {
-  itemToDelete.value = id
-  showBannerDeleteConfirm.value = true
-}
-
-const confirmBannerDelete = async () => {
-  if (!itemToDelete.value) return
-  
+const loadUserStats = async () => {
   try {
-    const { error } = await bannerService.delete(itemToDelete.value)
-    if (error) throw error
-    
-    await loadBanners()
-    toast.success('Banner deleted successfully')
-  } catch (error: any) {
-    toast.error(error.message || 'Failed to delete banner')
+    loading.value = true;
+    const userId = route.query.id?.toString() || user.value?.id;
+
+    if (!userId) return;
+
+    const [followers, following] = await Promise.all([
+      userFollowers.getFollowerCount(userId),
+      userFollowers.getFollowingCount(userId),
+    ]);
+
+    stats.value = {
+      followers,
+      following,
+    };
+  } catch (err) {
+    console.error("Error loading user stats:", err);
+    toast.error("Failed to load user statistics");
   } finally {
-    showBannerDeleteConfirm.value = false
-    itemToDelete.value = null
+    loading.value = false;
   }
-}
+};
 
-// Category Management
-const openCategorySettings = async () => {
-  await loadCategories()
-  showCategorySettings.value = true
-}
+const handleFollow = async () => {
+  if (!user.value) return;
 
-const openCategoryCreate = () => {
-  selectedCategory.value = null
-  categoryName.value = ''
-  showCategoryForm.value = true
-}
-
-const openCategoryEdit = (category: HistoryCategory) => {
-  selectedCategory.value = category
-  categoryName.value = category.name
-  showCategoryForm.value = true
-}
-
-const handleCategorySubmit = async () => {
-  if (!categoryName.value) return
-  
   try {
-    if (selectedCategory.value) {
-      const { error } = await historyCategoryService.update(selectedCategory.value.id, { name: categoryName.value })
-      if (error) throw error
+    const result = await toggleFollow();
+    if (result?.success) {
+      // Update follower count
+      if (result.action === "follow") {
+        stats.value.followers++;
+        toast.success(`You are now following ${user.value.name}`);
+      } else {
+        stats.value.followers = Math.max(0, stats.value.followers - 1);
+        toast.success(`You have unfollowed ${user.value.name}`);
+      }
+    }
+  } catch (err) {
+    console.error("Error updating follow status:", err);
+    toast.error("Failed to update follow status");
+  }
+};
+
+const handleMessage = async () => {
+  const { user: currentUser, getCurrentUser } = useUser();
+  
+  // Ensure current user is loaded
+  const currentUserData = await getCurrentUser();
+  
+  if (!currentUserData?.id || !user.value?.id) {
+    toast.error("Please log in to send messages");
+    return;
+  }
+
+  try {
+    const result = await chatRoomService.findOrCreatePrivateRoom({
+      fromId: currentUserData.id,
+      toId: user.value.id,
+    });
+
+    if (result?.room?.id) {
+      router.push(`/chat/${currentUserData.id}/${result.room.id}?type=PRIVATE`);
     } else {
-      const { error } = await historyCategoryService.create({ name: categoryName.value })
-      if (error) throw error
+      throw new Error('Failed to create or find chat room');
     }
-    
-    await loadCategories()
-    showCategoryForm.value = false
-    selectedCategory.value = null
-    categoryName.value = ''
-  } catch (error: any) {
-    toast.error(error.message || 'Failed to save category')
+  } catch (error) {
+    console.error("Error starting chat:", error);
+    toast.error("Failed to start chat. Please try again.");
   }
-}
+};
 
-const handleCategoryDelete = (id: number) => {
-  itemToDelete.value = id
-  showCategoryDeleteConfirm.value = true
-}
+// Watch for route changes to load different user profiles
+watch(
+  () => route.query.id,
+  async () => {
+    await loadUserData();
+    await loadUserStats();
+  },
+  { immediate: true }
+);
 
-const confirmCategoryDelete = async () => {
-  if (!itemToDelete.value) return
-  
-  try {
-    const { error } = await historyCategoryService.delete(itemToDelete.value)
-    if (error) throw error
-    
-    await loadCategories()
-    toast.success('Category deleted successfully')
-  } catch (error: any) {
-    toast.error(error.message || 'Failed to delete category')
-  } finally {
-    showCategoryDeleteConfirm.value = false
-    itemToDelete.value = null
+const copyToClipboard = (text: string) => {
+  if (typeof window !== "undefined") {
+    navigator.clipboard.writeText(text);
+    toast.success("Email copied to clipboard!");
   }
-}
+};
 </script>
 
 <template>
   <MainLayout title="Profile">
-    <div class="p-4 space-y-4">
+    <div class="p-4">
+      <!-- Action Buttons -->
+      <div v-if="!isCurrentUser && user" class="flex gap-3 mb-6">
+        <button
+          @click="handleFollow"
+          :class="[
+            'px-6 py-2 rounded-lg font-medium transition-colors',
+            user.isFollowing
+              ? 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50'
+              : 'bg-blue-600 text-white hover:bg-blue-700',
+          ]"
+        >
+          {{ user.isFollowing ? "Following" : "Follow" }}
+        </button>
+        <button
+          @click="handleMessage"
+          class="flex-1 flex items-center justify-center gap-2 bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 font-medium py-2 px-4 rounded-lg transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
+          Message
+        </button>
+      </div>
+
       <!-- User Card -->
       <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
         <div class="flex flex-col items-center">
-          <img 
-            :src="user.avatar" 
-            :alt="user.name"
+          <img
+            :src="user?.avatar_url || '/img.jpg'"
+            :alt="user?.name || 'User'"
             class="w-24 h-24 rounded-full object-cover border-4 border-blue-100"
+          />
+          <h2 class="mt-4 text-xl font-bold text-gray-900">{{ user?.name }}</h2>
+          <div
+            v-if="
+              (isCurrentUser && user?.email) || (!isCurrentUser && user?.email)
+            "
+            class="group flex items-center gap-2 mt-1"
           >
-          <h2 class="mt-4 text-xl font-bold text-gray-900">{{ user.name }}</h2>
-          <p class="text-gray-600 mt-1">{{ user.email }}</p>
+            <p
+              class="text-gray-600 group-hover:text-blue-500 transition-colors duration-300 group-hover:font-bold"
+            >
+              {{ user?.email }}
+            </p>
+            <button
+              v-if="isCurrentUser"
+              @click="copyToClipboard(user.email)"
+              class="text-gray-400 hover:text-blue-500 transition-colors cursor-pointer group-hover:text-blue-500"
+              title="Copy email"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                />
+              </svg>
+            </button>
+          </div>
+          <!-- <p v-if="user?.role" class="text-sm text-gray-500 mt-1">Role: {{ user.role }}</p> -->
+
+          <!-- Follow Stats -->
+          <div class="w-full mt-6">
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Followers -->
+              <button
+                @click="openPopup('followers')"
+                class="w-full bg-gray-50 rounded-lg p-4 text-center border border-gray-100 hover:border-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                :disabled="loading"
+              >
+                <div v-if="loading" class="animate-pulse">
+                  <div class="h-6 w-3/4 bg-gray-200 rounded mx-auto mb-1"></div>
+                  <div class="h-4 w-1/2 bg-gray-200 rounded mx-auto"></div>
+                </div>
+                <template v-else>
+                  <p class="text-2xl font-bold text-gray-900">
+                    {{ stats.followers.toLocaleString() }}
+                  </p>
+                  <p class="text-sm text-gray-500">Followers</p>
+                </template>
+              </button>
+
+              <!-- Following -->
+              <button
+                @click="openPopup('following')"
+                class="w-full bg-gray-50 rounded-lg p-4 text-center border border-gray-100 hover:border-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                :disabled="loading"
+              >
+                <div v-if="loading" class="animate-pulse">
+                  <div class="h-6 w-3/4 bg-gray-200 rounded mx-auto mb-1"></div>
+                  <div class="h-4 w-1/2 bg-gray-200 rounded mx-auto"></div>
+                </div>
+                <template v-else>
+                  <p class="text-2xl font-bold text-gray-900">
+                    {{ stats.following.toLocaleString() }}
+                  </p>
+                  <p class="text-sm text-gray-500">Following</p>
+                </template>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-
-      <!-- Edit Profile Button -->
-      <button 
-        @click="openEditProfile"
-        class="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center gap-2"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-        </svg>
-        Edit Profile
-      </button>
-
-      <!-- Edit Password Button -->
-      <button 
-        @click="openEditPassword"
-        class="w-full py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium flex items-center justify-center gap-2"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-        </svg>
-        Edit Password
-      </button>
-
-      <!-- Settings Section -->
-      <div class="pt-4 space-y-3">
-        <h3 class="text-lg font-semibold text-gray-900">Settings</h3>
-        
-        <!-- Banner Settings Button -->
-        <button 
-          @click="openBannerSettings"
-          class="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium flex items-center justify-center gap-2"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Setting Banner
-        </button>
-
-        <!-- Category Settings Button -->
-        <button 
-          @click="openCategorySettings"
-          class="w-full py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex items-center justify-center gap-2"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-          </svg>
-          Setting Category
-        </button>
-      </div>
-
-      <!-- Logout Button -->
-      <button 
-        @click="handleLogout"
-        class="fixed bottom-20 left-4 right-4 max-w-md mx-auto py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium flex items-center justify-center gap-2"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-        </svg>
-        Logout
-      </button>
     </div>
 
-    <!-- Edit Profile Modal -->
-    <Teleport to="body">
-      <div 
-        v-if="showEditProfile"
-        class="fixed inset-0 z-[100] bg-black bg-opacity-50 flex items-center justify-center p-4"
-        @click.self="showEditProfile = false"
-      >
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Edit Profile</h2>
-            <button @click="showEditProfile = false" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div v-if="errorMessage" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
-            {{ errorMessage }}
-          </div>
-
-          <div v-if="successMessage" class="bg-green-50 text-green-600 p-3 rounded-lg text-sm">
-            {{ successMessage }}
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
-            <input 
-              v-model="editName"
-              type="text" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Upload Avatar</label>
-            <input 
-              type="file"
-              accept="image/*"
-              @change="handleAvatarChange"
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-          </div>
-
-          <div v-if="avatarPreview" class="mt-3">
-            <img 
-              :src="avatarPreview" 
-              alt="Preview"
-              class="w-24 h-24 rounded-full object-cover mx-auto border-4 border-blue-100"
-            >
-          </div>
-
-          <div class="flex gap-3 pt-4">
-            <button 
-              @click="showEditProfile = false"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-            >
-              Batal
-            </button>
-            <button 
-              @click="saveProfile"
-              :disabled="uploading"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              {{ uploading ? 'Uploading...' : 'Simpan' }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Edit Password Modal -->
-    <Teleport to="body">
-      <div 
-        v-if="showEditPassword"
-        class="fixed inset-0 z-[100] bg-black bg-opacity-50 flex items-center justify-center p-4"
-        @click.self="showEditPassword = false"
-      >
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Edit Password</h2>
-            <button @click="showEditPassword = false" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div v-if="errorMessage" class="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
-            {{ errorMessage }}
-          </div>
-
-          <div v-if="successMessage" class="bg-green-50 text-green-600 p-3 rounded-lg text-sm">
-            {{ successMessage }}
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Password Lama</label>
-            <input 
-              v-model="oldPassword"
-              type="password" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Password Baru</label>
-            <input 
-              v-model="newPassword"
-              type="password" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Konfirmasi Password Baru</label>
-            <input 
-              v-model="confirmPassword"
-              type="password" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-          </div>
-
-          <div class="flex gap-3 pt-4">
-            <button 
-              @click="showEditPassword = false"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-            >
-              Batal
-            </button>
-            <button 
-              @click="savePassword"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Simpan
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Banner Settings Modal -->
-    <Teleport to="body">
-      <div 
-        v-if="showBannerSettings"
-        class="fixed inset-0 z-[100] bg-black bg-opacity-50 flex items-center justify-center p-4"
-        @click.self="showBannerSettings = false"
-      >
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Setting Banner</h2>
-            <button @click="showBannerSettings = false" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <button 
-            @click="openBannerCreate"
-            class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-          >
-            + Add Banner
-          </button>
-
-          <div class="space-y-3">
-            <div 
-              v-for="banner in banners" 
-              :key="banner.id"
-              class="flex gap-3 p-3 border border-gray-200 rounded-lg"
-            >
-              <img 
-                :src="banner.url" 
-                :alt="banner.name"
-                class="w-16 h-16 rounded object-cover"
-              >
-              <div class="flex-1 min-w-0">
-                <h3 class="font-semibold text-gray-900 truncate">{{ banner.name }}</h3>
-              </div>
-              <div class="flex gap-2">
-                <button
-                  @click="openBannerEdit(banner)"
-                  class="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
-                <button
-                  @click="handleBannerDelete(banner.id)"
-                  class="p-2 text-red-600 hover:bg-red-50 rounded"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div v-if="banners.length === 0" class="text-center py-8 text-gray-500">
-              Belum ada banner
-            </div>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Banner Form Modal -->
-    <Teleport to="body">
-      <div 
-        v-if="showBannerForm"
-        class="fixed inset-0 z-[110] bg-black bg-opacity-50 flex items-center justify-center p-4"
-        @click.self="showBannerForm = false"
-      >
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">{{ selectedBanner ? 'Edit' : 'Add' }} Banner</h2>
-            <button @click="showBannerForm = false" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <BannerForm 
-            :banner="selectedBanner"
-            @submit="handleBannerSubmit"
-            @cancel="showBannerForm = false"
-          />
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Category Settings Modal -->
-    <!-- Banner Delete Confirmation -->
-    <ConfirmAlert
-      v-model:isOpen="showBannerDeleteConfirm"
-      @confirm="confirmBannerDelete"
-      @cancel="showBannerDeleteConfirm = false"
-    >
-      Are you sure you want to delete this banner?
-    </ConfirmAlert>
-
-    <!-- Category Delete Confirmation -->
-    <ConfirmAlert
-      v-model:isOpen="showCategoryDeleteConfirm"
-      @confirm="confirmCategoryDelete"
-      @cancel="showCategoryDeleteConfirm = false"
-    >
-      Are you sure you want to delete this category?
-    </ConfirmAlert>
-
-    <Teleport to="body">
-      <div 
-        v-if="showCategorySettings"
-        class="fixed inset-0 z-[100] bg-black bg-opacity-50 flex items-center justify-center p-4"
-        @click.self="showCategorySettings = false"
-      >
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">Setting Kategori History</h2>
-            <button @click="showCategorySettings = false" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <button 
-            @click="openCategoryCreate"
-            class="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-          >
-            + Add Kategori
-          </button>
-
-          <div class="space-y-2">
-            <div 
-              v-for="category in categories" 
-              :key="category.id"
-              class="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
-            >
-              <span class="font-medium text-gray-900">{{ category.name }}</span>
-              <div class="flex gap-2">
-                <button
-                  @click="openCategoryEdit(category)"
-                  class="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
-                <button
-                  @click="handleCategoryDelete(category.id)"
-                  class="p-2 text-red-600 hover:bg-red-50 rounded"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div v-if="categories.length === 0" class="text-center py-8 text-gray-500">
-              Belum ada kategori
-            </div>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Category Form Modal -->
-    <Teleport to="body">
-      <div 
-        v-if="showCategoryForm"
-        class="fixed inset-0 z-[110] bg-black bg-opacity-50 flex items-center justify-center p-4"
-        @click.self="showCategoryForm = false"
-      >
-        <div class="bg-white rounded-2xl w-full max-w-md p-6 space-y-4">
-          <div class="flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-900">{{ selectedCategory ? 'Edit' : 'Add' }} Kategori</h2>
-            <button @click="showCategoryForm = false" class="text-gray-500 hover:text-gray-700">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Nama Kategori</label>
-            <input 
-              v-model="categoryName"
-              type="text" 
-              placeholder="Masukkan nama kategori..."
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            >
-          </div>
-
-          <div class="flex gap-3 pt-4">
-            <button 
-              @click="showCategoryForm = false"
-              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-            >
-              Batal
-            </button>
-            <button 
-              @click="handleCategorySubmit"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              :disabled="!categoryName"
-            >
-              Simpan
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-    <!-- Logout Confirmation -->
-    <ConfirmAlert
-      v-model:isOpen="showLogoutConfirm"
-      @confirm="confirmLogout"
-      @cancel="showLogoutConfirm = false"
-    >
-      Are you sure you want to logout?
-    </ConfirmAlert>
+    <!-- User List Popup -->
+    <UserListPopup
+      v-if="user"
+      :is-open="showPopup"
+      :user-id="user.id"
+      :type="popupType"
+      @close="closePopup"
+    />
   </MainLayout>
 </template>

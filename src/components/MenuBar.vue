@@ -32,6 +32,15 @@ const isActive = (path: string) => computed(() => route.path === path)
       </router-link>
 
       <router-link 
+        to="/chat" 
+        class="flex flex-col items-center justify-center flex-1 py-2"
+        :class="isActive('/chat').value ? 'text-blue-600' : 'text-gray-600'"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-icon lucide-message-square"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"/></svg>
+        <span class="text-xs mt-1">Chat</span>
+      </router-link>
+
+      <router-link 
         to="/profile" 
         class="flex flex-col items-center justify-center flex-1 py-2"
         :class="isActive('/profile').value ? 'text-blue-600' : 'text-gray-600'"

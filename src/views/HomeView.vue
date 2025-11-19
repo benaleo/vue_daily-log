@@ -37,16 +37,16 @@ const balance = computed(() => {
 
 const monthStats = computed(() => {
   const ym = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}`
-  const monthly = histories.value.filter(h => h.created_at.startsWith(ym))
+  const monthly = histories.value.filter(h => h.ts_at.startsWith(ym))
   const income = monthly.filter(h => h.type === 'INCOME').reduce((s, h) => s + h.amount, 0)
   const spend = monthly.filter(h => h.type === 'SPEND').reduce((s, h) => s + h.amount, 0)
   return { income, spend, net: income - spend }
 })
 
 onMounted(async () => {
-  const { session } = await authService.getSession()
-  if (session?.user?.user_metadata?.name) {
-    userName.value = session.user.user_metadata.name
+  const { sessionUser } = await authService.getSession()
+  if (sessionUser?.name) {
+    userName.value = sessionUser.name
   }
   
   await Promise.all([

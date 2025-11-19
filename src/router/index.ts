@@ -4,7 +4,9 @@ import HistoryView from '../views/HistoryView.vue'
 import ProfileView from '../views/ProfileView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
+import ChatRoomView from '../views/ChatRoomView.vue'
 import { authGuard } from './auth-guard'
+import ChatMessagesView from '@/views/ChatMessagesView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -43,9 +45,28 @@ const router = createRouter({
       component: ProfileView,
       meta: { requiresAuth: true, title: 'Profile' }
     },
+    {
+      path: '/chat',
+      children: [
+        {
+          path: '',
+          name: 'chat',
+          component: ChatRoomView,
+          meta: { requiresAuth: true, title: 'Chat' },
+        },
+        {
+          path: ':fromId/:roomId',
+          name: 'chat-room',
+          component: ChatMessagesView,
+          meta: { requiresAuth: true, title: 'Chat Room' },
+          props: true
+        }
+      ]
+    },
   ],
 })
 
 router.beforeEach(authGuard)
 
 export default router
+

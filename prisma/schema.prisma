@@ -1,0 +1,215 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+  schemas   = ["public"]
+}
+
+enum RoomType {
+  PRIVATE
+  CHANNEL
+  
+  @@schema("public")
+}
+
+// This model maps to the existing auth.users table in Supabase
+model User {
+  @@schema("public")
+  @@map("users")
+  
+  id            String            @id @db.Uuid
+  email         String?           @db.VarChar(255)
+  role          String?           @db.VarChar(255) @default("USER")
+  name          String?           @db.VarChar(255)
+  avatar_url    String?           @db.VarChar(255)
+  is_public     Boolean           @default(false)
+  created_at    DateTime?         @db.Timestamptz(6)
+  updated_at    DateTime?         @db.Timestamptz(6)
+  
+  // Relations
+  categories   HistoryCategory[]
+  histories    History[]
+  followers    UserFollower[]     @relation("followers")
+  following    UserFollower[]     @relation("following")
+  
+  // Chat Relations
+  created_rooms          ChatRoom[]            @relation("created_rooms")
+  deleted_rooms          ChatRoom[]            @relation("deleted_rooms")
+  user_room_users        ChatRoomUser[]        @relation("user_room_users")
+  created_chat_room_users ChatRoomUser[]        @relation("created_chat_room_users")
+  deleted_chat_room_users ChatRoomUser[]       @relation("deleted_chat_room_users")
+  blocked_users          ChatBlocked[]         @relation("blocked_users")
+  blocked_by_users       ChatBlocked[]         @relation("blocked_by_users")
+}
+
+enum HistoryType {
+  INCOME
+  SPEND
+
+  @@schema("public")
+}
+
+model Banner {
+  @@schema("public")
+  @@map("banners")
+
+  id         BigInt      @id @default(autoincrement())
+  name       String
+  url        String
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+  deleted_at DateTime?
+}
+
+model HistoryCategory {
+  @@schema("public")
+  @@map("history_categories")
+  
+  id         BigInt      @id @default(autoincrement())
+  name       String
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+  deleted_at DateTime?
+  user_id    String?     @db.Uuid
+  user       User?       @relation(fields: [user_id], references: [id])
+  histories  History[]
+}
+
+model History {
+  @@schema("public")
+  @@map("histories")
+  
+  id          BigInt      @id @default(autoincrement())
+  name        String
+  category_id BigInt
+  category    HistoryCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
+  image_url   String?
+  type        HistoryType
+  ts_at       DateTime    @default(now())
+  amount      Float       @default(0)
+  created_at  DateTime    @default(now())
+  updated_at  DateTime    @updatedAt
+  deleted_at  DateTime?
+  user_id     String?     @db.Uuid
+  user        User?       @relation(fields: [user_id], references: [id])
+}
+
+model UserFollower {
+  @@schema("public")
+  @@map("user_followers")
+  
+  from_id    String   @db.Uuid
+  with_id    String   @db.Uuid
+  created_at DateTime @default(now())
+  from       User     @relation("following", fields: [from_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  with       User     @relation("followers", fields: [with_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@id([from_id, with_id])
+  @@index([created_at(sort: Desc)])
+}
+
+model ChatRoom {
+  @@schema("public")
+  @@map("chat_rooms")
+  
+  id            String          @id @default(uuid()) @db.Uuid
+  name          String?         @db.VarChar(100)
+  avatar        String?
+  description   String?
+  room_type     RoomType        @default(PRIVATE)
+  is_only_admin Boolean         @default(false)
+  last_message_at DateTime?     @db.Timestamptz
+  created_at    DateTime        @default(now()) @db.Timestamptz
+  updated_at    DateTime        @updatedAt @db.Timestamptz
+  deleted_at    DateTime?       @db.Timestamptz
+  
+  // Relations
+  creator_id    String          @db.Uuid
+  creator       User            @relation("created_rooms", fields: [creator_id], references: [id])
+  deleted_by_id String?         @db.Uuid
+  deleted_by    User?           @relation("deleted_rooms", fields: [deleted_by_id], references: [id])
+  
+  members       ChatRoomUser[]
+  messages      ChatMessage[]
+  
+  @@index([last_message_at(sort: Desc)])
+}
+
+model ChatRoomUser {
+  @@schema("public")
+  @@map("chat_room_users")
+  
+  id           String     @id @default(uuid()) @db.Uuid
+  is_notify    Boolean    @default(true)
+  is_admin     Boolean    @default(false)
+  created_at   DateTime   @default(now()) @db.Timestamptz
+  deleted_at   DateTime?  @db.Timestamptz
+  
+  // Relations
+  room_id      String     @db.Uuid
+  room         ChatRoom   @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  user_id      String     @db.Uuid
+  user         User       @relation("user_room_users", fields: [user_id], references: [id])
+  created_by   String     @db.Uuid
+  creator      User       @relation("created_chat_room_users", fields: [created_by], references: [id])
+  deleted_by   String?    @db.Uuid
+  deleter      User?      @relation("deleted_chat_room_users", fields: [deleted_by], references: [id])
+  
+  // Relations to messages
+  sent_messages   ChatMessage[] @relation("sent_messages")
+  received_messages ChatMessage[] @relation("received_messages")
+  
+  @@unique([room_id, user_id], name: "user_room_unique")
+  @@index([user_id])
+  @@index([room_id])
+}
+
+model ChatMessage {
+  @@schema("public")
+  @@map("chat_messages")
+  
+  id           String        @id @default(uuid()) @db.Uuid
+  content      String?
+  type         String        @default("TEXT")
+  is_read      Boolean       @default(false)
+  created_at   DateTime      @default(now()) @db.Timestamptz
+  updated_at   DateTime      @updatedAt @db.Timestamptz
+  deleted_at   DateTime?     @db.Timestamptz
+  
+  // Relations
+  from_id      String        @db.Uuid
+  from         ChatRoomUser  @relation("sent_messages", fields: [from_id], references: [id])
+  to_id        String?       @db.Uuid
+  to           ChatRoomUser? @relation("received_messages", fields: [to_id], references: [id])
+  room_id      String        @db.Uuid
+  room         ChatRoom      @relation(fields: [room_id], references: [id])
+  
+  @@index([room_id])
+  @@index([from_id])
+  @@index([to_id])
+  @@index([created_at(sort: Desc)])
+}
+
+model ChatBlocked {
+  @@schema("public")
+  @@map("chat_blockeds")
+  
+  from_id     String   @db.Uuid
+  to_id       String   @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz
+  
+  // Relations
+  from        User     @relation("blocked_users", fields: [from_id], references: [id], onDelete: Cascade)
+  to          User     @relation("blocked_by_users", fields: [to_id], references: [id], onDelete: Cascade)
+  
+  @@id([from_id, to_id])
+}
+
+// Add relations to User model
