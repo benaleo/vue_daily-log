@@ -8,6 +8,7 @@ import { toast } from "vue-sonner";
 import UserListPopup from "@/components/UserListPopup.vue";
 import { useUser } from "@/composables/useUser";
 import { chatRoomService } from "@/services/chatRoomService";
+import { useCreateChatRoom } from "@/composables/chat/useCreateChatRoom";
 
 const router = useRouter();
 const route = useRoute();
@@ -102,31 +103,14 @@ const handleFollow = async () => {
   }
 };
 
+const { createPrivateChat, navigateToChatRoom } = useCreateChatRoom();
+
 const handleMessage = async () => {
-  const { user: currentUser, getCurrentUser } = useUser();
+  if (!user.value?.id) return;
   
-  // Ensure current user is loaded
-  const currentUserData = await getCurrentUser();
-  
-  if (!currentUserData?.id || !user.value?.id) {
-    toast.error("Please log in to send messages");
-    return;
-  }
-
-  try {
-    const result = await chatRoomService.findOrCreatePrivateRoom({
-      fromId: currentUserData.id,
-      toId: user.value.id,
-    });
-
-    if (result?.room?.id) {
-      router.push(`/chat/${currentUserData.id}/${result.room.id}?type=PRIVATE`);
-    } else {
-      throw new Error('Failed to create or find chat room');
-    }
-  } catch (error) {
-    console.error("Error starting chat:", error);
-    toast.error("Failed to start chat. Please try again.");
+  const roomId = await createPrivateChat(user.value.id);
+  if (roomId) {
+    navigateToChatRoom(roomId);
   }
 };
 

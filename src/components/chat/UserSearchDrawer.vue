@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUserSearch } from '@/composables/useUserSearch'
-import { useChatRooms } from '@/composables/chat/useChatRooms'
+import { useCreateChatRoom } from '@/composables/chat/useCreateChatRoom'
 import { toast } from 'vue-sonner'
 
 interface User {
@@ -24,11 +24,7 @@ const emit = defineEmits(['update:modelValue'])
 const router = useRouter()
 const { t } = useI18n()
 const searchQuery = ref('')
-const { createRoom } = useChatRooms() as { createRoom: (data: {
-  name: string
-  type: 'PRIVATE' | 'CHANNEL'
-  userIds: string[]
-}) => Promise<any> }
+const { createPrivateChat, navigateToChatRoom } = useCreateChatRoom()
 
 const { 
   searchResults, 
@@ -65,24 +61,10 @@ const closeDrawer = () => {
 }
 
 const handleSelectUser = async (user: User) => {
-  try {
-    const room = await createRoom({
-      name: `${user.name}'s Chat`,
-      type: 'PRIVATE',
-      userIds: [user.id],
-    })
-    
-    if (room) {
-      router.push({
-        name: 'chat-room',
-        params: { roomId: room.id },
-        query: { type: 'PRIVATE' }
-      })
-      closeDrawer()
-    }
-  } catch (error) {
-    console.error('Error creating chat room:', error)
-    toast.error(t('chat.create_room_error'))
+  const roomId = await createPrivateChat(user.id)
+  if (roomId) {
+    navigateToChatRoom(roomId)
+    closeDrawer()
   }
 }
 
