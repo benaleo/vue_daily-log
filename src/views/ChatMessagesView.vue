@@ -7,6 +7,7 @@ import { useSessionUser } from "@/composables/useSessionUser";
 import MainLayout from "@/layouts/MainLayout.vue";
 import { Send } from "lucide-vue-next";
 import { supabase } from "@/services/supabase";
+import { groupMessagesByDate } from "@/lib/helpers/dateGrouping";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -14,6 +15,9 @@ const router = useRouter();
 const { sessionUser, ensureSession } = useSessionUser();
 const showMenu = ref(false);
 const messagesEndRef = ref<HTMLElement | null>(null);
+
+// Group messages by date
+const groupedMessages = computed(() => groupMessagesByDate(messages.value));
 
 // Initialize chat room
 const {
@@ -276,26 +280,40 @@ const handleTextareaKeydown = (event: KeyboardEvent) => {
         class="flex-1 overflow-y-auto p-4 space-y-4 messages-container pb-42"
       >
         <div
-          v-for="message in messages"
-          :key="message.id"
-          :class="{
-            'flex justify-end': message.user_id === sessionUser.user_id,
-            flex: message.user_id !== sessionUser.user_id,
-          }"
+          v-for="group in groupedMessages"
+          :key="group.date"
+          class="space-y-4"
         >
+          <!-- Date separator -->
+          <div class="flex items-center justify-center my-4">
+            <div class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-3 py-1 rounded-full">
+              {{ group.label }}
+            </div>
+          </div>
+          
+          <!-- Messages for this date -->
           <div
+            v-for="message in group.messages"
+            :key="message.id"
             :class="{
-              'bg-blue-500 text-white rounded-l-xl rounded-br-xl':
-                message.user_id === sessionUser.user_id,
-              'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-r-xl rounded-bl-xl':
-                message.user_id !== sessionUser.user_id,
-              'max-w-xs md:max-w-md lg:max-w-lg xl:max-w-2xl px-4 py-2': true,
+              'flex justify-end': message.user_id === sessionUser.user_id,
+              flex: message.user_id !== sessionUser.user_id,
             }"
           >
-            <p class="text-sm">{{ message.content }}</p>
-            <p class="text-xs mt-1 text-right opacity-75">
-              {{ formatTime(message.created_at) }}
-            </p>
+            <div
+              :class="{
+                'bg-blue-500 text-white rounded-l-xl rounded-br-xl':
+                  message.user_id === sessionUser.user_id,
+                'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-r-xl rounded-bl-xl':
+                  message.user_id !== sessionUser.user_id,
+                'max-w-xs md:max-w-md lg:max-w-lg xl:max-w-2xl px-4 py-2': true,
+              }"
+            >
+              <p class="text-sm">{{ message.content }}</p>
+              <p class="text-xs mt-1 text-right opacity-75">
+                {{ formatTime(message.created_at) }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
