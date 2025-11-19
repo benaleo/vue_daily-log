@@ -372,7 +372,7 @@ export const chatService = {
       .single()
       .then(({ data, error }) => {
         if (error) throw error;
-        return data?.users?.name || "Unknown User";
+        return data?.users[0]?.name || "Unknown User";
       });
   },
 
