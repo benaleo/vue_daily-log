@@ -946,7 +946,8 @@ onMounted(async () => {
         v-if="showBannerForm"
         v-model:show="showBannerForm"
         :banner="selectedBanner"
-        @saved="handleBannerSubmit"
+        @submit="handleBannerSubmit"
+        @cancel="() => showBannerForm = false"
       />
     </Teleport>
 
